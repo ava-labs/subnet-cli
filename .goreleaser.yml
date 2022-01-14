@@ -1,0 +1,22 @@
+# ref. https://goreleaser.com/customization/build/
+builds:
+  - id: subnet-cli
+    main: .
+    binary: subnet-cli
+    flags:
+      - -v
+    # TODO: remove this once we support 32-bit in avalanchego
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: linux
+        goarch: 386
+      - goos: windows
+        goarch: 386
+      - goos: freebsd
+        goarch: 386
+
+release:
+  github:
+    owner: ava-labs
+    name: subnet-cli

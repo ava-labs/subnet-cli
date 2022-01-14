@@ -31,9 +31,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:        "runner",
+	Use:        "subnet-cli.runner",
 	Short:      "avalanche-network-runner wrapper",
-	SuggestFor: []string{"network-runner"},
+	SuggestFor: []string{"subnet-cli-runner"},
 	RunE:       runFunc,
 }
 
@@ -43,16 +43,39 @@ func init() {
 
 var (
 	avalancheGoBinPath string
+	dataDir            string
+	whitelistedSubnets string
 	outputPath         string
 )
 
 func init() {
+	dir, err := ioutil.TempDir(os.TempDir(), "subnet-cli-runner")
+	if err != nil {
+		panic(err)
+	}
+
 	rootCmd.PersistentFlags().StringVar(
 		&avalancheGoBinPath,
 		"avalanchego-path",
 		"",
 		"avalanchego binary path",
 	)
+
+	rootCmd.PersistentFlags().StringVar(
+		&dataDir,
+		"data-dir",
+		dir,
+		"avalanchego binary path",
+	)
+
+	// TODO: remove this once we have dynamic whitelisting API
+	rootCmd.PersistentFlags().StringVar(
+		&whitelistedSubnets,
+		"whitelisted-subnets",
+		"",
+		"a list of subnet tx IDs to whitelist",
+	)
+
 	rootCmd.PersistentFlags().StringVar(
 		&outputPath,
 		"output-path",
@@ -97,8 +120,7 @@ func run(avalancheGoBinPath string, outputPath string) (err error) {
 }
 
 type localNetwork struct {
-	logger  logging.Logger
-	logsDir string
+	logger logging.Logger
 
 	cfg network.Config
 
@@ -141,11 +163,6 @@ func newLocalNetwork(
 		panic(err)
 	}
 
-	logsDir, err := ioutil.TempDir(os.TempDir(), "runnerlogs")
-	if err != nil {
-		panic(err)
-	}
-
 	cfg := local.NewDefaultConfig(avalancheGoBinPath)
 	nodeNames := make([]string, len(cfg.NodeConfigs))
 	for i := range cfg.NodeConfigs {
@@ -166,9 +183,13 @@ func newLocalNetwork(
 	"index-enabled":true,
 	"log-display-level":"INFO",
 	"log-level":"INFO",
-	"log-dir":"%s"
+	"log-dir":"%s",
+	"db-dir":"%s",
+	"whitelisted-subnets":"%s"
 }`,
-			filepath.Join(logsDir, nodeName),
+			filepath.Join(dataDir, nodeName, "logs"),
+			filepath.Join(dataDir, nodeName, "db-dir"),
+			whitelistedSubnets,
 		))
 		wr := &writer{
 			c:    colors[i%len(cfg.NodeConfigs)],
@@ -185,8 +206,7 @@ func newLocalNetwork(
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 	return &localNetwork{
-		logger:  logger,
-		logsDir: logsDir,
+		logger: logger,
 
 		cfg: cfg,
 
@@ -213,7 +233,7 @@ func (lc *localNetwork) start() {
 		close(lc.donec)
 	}()
 
-	outf("{{blue}}{{bold}}create and run local network with log-dir %q{{/}}\n", lc.logsDir)
+	outf("{{blue}}{{bold}}create and run local network with data dir %q{{/}}\n", dataDir)
 	nw, err := local.NewNetwork(lc.logger, lc.cfg)
 	if err != nil {
 		lc.errc <- err
@@ -321,7 +341,7 @@ func (lc *localNetwork) writeOutput() error {
 		PChainID:    lc.pChainID.String(),
 		CChainID:    lc.cChainID.String(),
 		PID:         pid,
-		LogsDir:     lc.logsDir,
+		DataDir:     dataDir,
 	}
 	err := ci.Save(lc.outputPath)
 	if err != nil {

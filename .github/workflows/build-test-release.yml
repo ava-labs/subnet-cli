@@ -1,12 +1,10 @@
 name: Build + test
 
 on:
-  pull_request:
   push:
-    tags-ignore:
-      - "*" # Ignores all tags
-    branches-ignore:
+    branches:
       - main
+  pull_request:
 
 permissions:
   contents: read

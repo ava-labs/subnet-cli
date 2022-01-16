@@ -6,8 +6,7 @@ on:
     tags-ignore:
       - "*" # Ignores all tags
     branches-ignore:
-      - master
-      - dev
+      - main
 
 permissions:
   contents: read

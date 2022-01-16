@@ -5,13 +5,14 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	avago_constants "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/avm"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"github.com/ava-labs/subnet-cli/internal/poll"
 	"go.uber.org/zap"
 )
@@ -24,18 +25,7 @@ var (
 )
 
 type Config struct {
-	RootCtx context.Context
-
-	URI string
-
-	// Network ID set in the genesis.
-	NetworkID uint32
-
-	// avax asset ID
-	AssetID  ids.ID
-	XChainID ids.ID
-	PChainID ids.ID
-
+	URI            string
 	PollInterval   time.Duration
 	RequestTimeout time.Duration
 }
@@ -53,9 +43,17 @@ type Client interface {
 
 type client struct {
 	cfg Config
-	i   *info
-	k   *keyStore
-	p   *p
+
+	// fetched automatic
+	networkName string
+	networkID   uint32
+	assetID     ids.ID
+	xChainID    ids.ID
+	pChainID    ids.ID
+
+	i *info
+	k *keyStore
+	p *p
 }
 
 func New(cfg Config) (Client, error) {
@@ -69,41 +67,60 @@ func New(cfg Config) (Client, error) {
 		return nil, ErrInvalidRequestTimeout
 	}
 
-	ii := newInfo(cfg)
-	kk := newKeyStore(cfg)
-
-	if cfg.PChainID == ids.Empty {
-		cfg.PChainID = avago_constants.PlatformChainID
-	}
-	if cfg.AssetID == ids.Empty {
-		zap.L().Info("fetching X-Chain id")
-		xChainID, err := ii.cli.GetBlockchainID("X")
-		if err != nil {
-			return nil, err
-		}
-		cfg.XChainID = xChainID
-
-		zap.L().Info("fetching AVAX asset id")
-		xc := avm.NewClient(cfg.URI, cfg.XChainID.String(), cfg.RequestTimeout)
-		avaxDesc, err := xc.GetAssetDescription("AVAX")
-		if err != nil {
-			return nil, err
-		}
-		cfg.AssetID = avaxDesc.AssetID
-	}
-	if cfg.AssetID == ids.Empty {
-		return nil, ErrEmptyID
+	cli := &client{
+		cfg:      cfg,
+		pChainID: avago_constants.PlatformChainID,
+		i:        newInfo(cfg),
+		k:        newKeyStore(cfg),
 	}
 
-	pl := poll.New(cfg.RootCtx, cfg.PollInterval)
-	pp := newP(cfg, ii.Client(), pl)
+	zap.L().Info("fetching X-Chain id")
+	xChainID, err := cli.i.Client().GetBlockchainID("X")
+	if err != nil {
+		return nil, err
+	}
+	cli.xChainID = xChainID
+	zap.L().Info("fetched X-Chain id", zap.String("id", cli.xChainID.String()))
 
-	return &client{
+	zap.L().Info("fetching AVAX asset id")
+	xc := avm.NewClient(cfg.URI, cli.xChainID.String(), cfg.RequestTimeout)
+	avaxDesc, err := xc.GetAssetDescription("AVAX")
+	if err != nil {
+		return nil, err
+	}
+	cli.assetID = avaxDesc.AssetID
+	zap.L().Info("fetched AVAX asset id", zap.String("id", cli.assetID.String()))
+
+	zap.L().Info("fetching network information")
+	cli.networkName, err = cli.i.Client().GetNetworkName()
+	if err != nil {
+		return nil, err
+	}
+	cli.networkID, err = avago_constants.NetworkID(cli.networkName)
+	if err != nil {
+		return nil, err
+	}
+	zap.L().Info("fetched network information",
+		zap.Uint32("networkId", cli.networkID),
+		zap.String("networkName", cli.networkName),
+	)
+
+	pc := platformvm.NewClient(cfg.URI, cfg.RequestTimeout)
+	cli.p = &p{
 		cfg: cfg,
-		i:   ii,
-		k:   kk,
-		p:   pp,
-	}, nil
+
+		networkID: cli.networkID,
+		assetID:   cli.assetID,
+		pChainID:  cli.pChainID,
+
+		cli:  pc,
+		info: cli.i.Client(),
+		checker: internal_platformvm.NewChecker(
+			poll.New(cfg.PollInterval),
+			pc,
+		),
+	}
+	return cli, nil
 }
 
 func (cc *client) Config() Config { return cc.cfg }

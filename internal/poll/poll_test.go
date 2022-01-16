@@ -13,12 +13,11 @@ import (
 func TestPoll(t *testing.T) {
 	t.Parallel()
 
+	pl := New(time.Minute)
+
 	rootCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-
-	pl := New(rootCtx, time.Minute)
-	_, err := pl.Poll(context.Background(), nil)
-	if !errors.Is(err, ErrAborted) {
+	if _, err := pl.Poll(rootCtx, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("unexpected Poll error %v", err)
 	}
 }

@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ava-labs/subnet-cli/create"
-	createkey "github.com/ava-labs/subnet-cli/create-key"
+	"github.com/ava-labs/subnet-cli/cmd/add"
+	"github.com/ava-labs/subnet-cli/cmd/create"
+	"github.com/ava-labs/subnet-cli/cmd/status"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,8 @@ func init() {
 func init() {
 	rootCmd.AddCommand(
 		create.NewCommand(),
-		createkey.NewCommand(),
+		add.NewCommand(),
+		status.NewCommand(),
 	)
 }
 

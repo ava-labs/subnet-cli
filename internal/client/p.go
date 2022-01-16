@@ -21,7 +21,6 @@ import (
 	internal_avax "github.com/ava-labs/subnet-cli/internal/avax"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
-	"github.com/ava-labs/subnet-cli/internal/poll"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +31,6 @@ var (
 	// ref. "vms.platformvm".
 	ErrWrongTxType   = errors.New("wrong transaction type")
 	ErrUnknownOwners = errors.New("unknown owners")
-	ErrWrongLocktime = errors.New("wrong locktime reported")
 	ErrCantSign      = errors.New("can't sign")
 )
 
@@ -42,11 +40,13 @@ type P interface {
 	Balance(key key.Key) (uint64, error)
 
 	CreateSubnet(
+		ctx context.Context,
 		key key.Key,
 		opts ...OpOption,
 	) (subnetID ids.ID, took time.Duration, err error)
 
 	AddSubnetValidator(
+		ctx context.Context,
 		k key.Key,
 		subnetID ids.ID,
 		nodeID ids.ShortID,
@@ -57,6 +57,7 @@ type P interface {
 	) (took time.Duration, err error)
 
 	CreateBlockchain(
+		ctx context.Context,
 		key key.Key,
 		subnetID ids.ID,
 		vmName string,
@@ -67,22 +68,14 @@ type P interface {
 }
 
 type p struct {
-	cfg Config
+	cfg       Config
+	networkID uint32
+	assetID   ids.ID
+	pChainID  ids.ID
 
 	cli     platformvm.Client
 	info    api_info.Client
 	checker internal_platformvm.Checker
-}
-
-func newP(cfg Config, info api_info.Client, pl poll.Poller) *p {
-	pc := platformvm.NewClient(cfg.URI, cfg.RequestTimeout)
-	return &p{
-		cfg: cfg,
-
-		cli:     pc,
-		info:    info,
-		checker: internal_platformvm.NewChecker(pl, pc),
-	}
 }
 
 func (pc *p) Client() platformvm.Client            { return pc.cli }
@@ -98,6 +91,7 @@ func (pc *p) Balance(key key.Key) (uint64, error) {
 
 // ref. "platformvm.VM.newCreateSubnetTx".
 func (pc *p) CreateSubnet(
+	ctx context.Context,
 	k key.Key,
 	opts ...OpOption,
 ) (subnetID ids.ID, took time.Duration, err error) {
@@ -112,7 +106,7 @@ func (pc *p) CreateSubnet(
 
 	zap.L().Info("creating subnet",
 		zap.Bool("dryMode", ret.dryMode),
-		zap.String("assetId", pc.cfg.AssetID.String()),
+		zap.String("assetId", pc.assetID.String()),
 		zap.Uint64("createSubnetTxFee", createSubnetTxFee),
 	)
 	ins, outs, signers, err := pc.stake(k, createSubnetTxFee)
@@ -122,8 +116,8 @@ func (pc *p) CreateSubnet(
 
 	utx := &platformvm.UnsignedCreateSubnetTx{
 		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.cfg.NetworkID,
-			BlockchainID: pc.cfg.PChainID,
+			NetworkID:    pc.networkID,
+			BlockchainID: pc.pChainID,
 			Ins:          ins,
 			Outs:         outs,
 		}},
@@ -143,8 +137,8 @@ func (pc *p) CreateSubnet(
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.cfg.NetworkID,
-		ChainID:   pc.cfg.PChainID,
+		NetworkID: pc.networkID,
+		ChainID:   pc.pChainID,
 	}); err != nil {
 		return ids.Empty, 0, err
 	}
@@ -163,14 +157,13 @@ func (pc *p) CreateSubnet(
 		return subnetID, 0, ErrUnexpectedSubnetID
 	}
 
-	ctx, cancel := context.WithTimeout(pc.cfg.RootCtx, pc.cfg.RequestTimeout)
 	took, err = pc.checker.PollSubnet(ctx, txID)
-	cancel()
 	return txID, took, err
 }
 
 // ref. "platformvm.VM.newAddSubnetValidatorTx".
 func (pc *p) AddSubnetValidator(
+	ctx context.Context,
 	k key.Key,
 	subnetID ids.ID,
 	nodeID ids.ShortID,
@@ -216,8 +209,8 @@ func (pc *p) AddSubnetValidator(
 
 	utx := &platformvm.UnsignedAddSubnetValidatorTx{
 		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.cfg.NetworkID,
-			BlockchainID: pc.cfg.PChainID,
+			NetworkID:    pc.networkID,
+			BlockchainID: pc.pChainID,
 			Ins:          ins,
 			Outs:         outs,
 		}},
@@ -239,8 +232,8 @@ func (pc *p) AddSubnetValidator(
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.cfg.NetworkID,
-		ChainID:   pc.cfg.PChainID,
+		NetworkID: pc.networkID,
+		ChainID:   pc.pChainID,
 	}); err != nil {
 		return 0, err
 	}
@@ -249,14 +242,12 @@ func (pc *p) AddSubnetValidator(
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(pc.cfg.RootCtx, pc.cfg.RequestTimeout)
-	took, err = pc.checker.PollTx(ctx, txID, platformvm.Committed)
-	cancel()
-	return took, err
+	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
 }
 
 // ref. "platformvm.VM.newCreateChainTx".
 func (pc *p) CreateBlockchain(
+	ctx context.Context,
 	k key.Key,
 	subnetID ids.ID,
 	vmName string,
@@ -280,6 +271,7 @@ func (pc *p) CreateBlockchain(
 	}
 	createBlkChainTxFee := uint64(fi.CreateBlockchainTxFee)
 
+	now := time.Now()
 	zap.L().Info("creating blockchain",
 		zap.String("subnetId", subnetID.String()),
 		zap.String("vmName", vmName),
@@ -298,8 +290,8 @@ func (pc *p) CreateBlockchain(
 
 	utx := &platformvm.UnsignedCreateChainTx{
 		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.cfg.NetworkID,
-			BlockchainID: pc.cfg.PChainID,
+			NetworkID:    pc.networkID,
+			BlockchainID: pc.pChainID,
 			Ins:          ins,
 			Outs:         outs,
 		}},
@@ -317,8 +309,8 @@ func (pc *p) CreateBlockchain(
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.cfg.NetworkID,
-		ChainID:   pc.cfg.PChainID,
+		NetworkID: pc.networkID,
+		ChainID:   pc.pChainID,
 	}); err != nil {
 		return ids.Empty, 0, err
 	}
@@ -327,20 +319,24 @@ func (pc *p) CreateBlockchain(
 		return ids.Empty, 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(pc.cfg.RootCtx, pc.cfg.RequestTimeout)
-	took, err = pc.checker.PollBlockchain(
-		ctx,
-		internal_platformvm.WithSubnetID(subnetID),
-		internal_platformvm.WithBlockchainID(blkChainID),
-		internal_platformvm.WithBlockchainStatus(platformvm.Validating),
-		internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
-	)
-	cancel()
+	took = time.Since(now)
+	if ret.poll {
+		var bTook time.Duration
+		bTook, err = pc.checker.PollBlockchain(
+			ctx,
+			internal_platformvm.WithSubnetID(subnetID),
+			internal_platformvm.WithBlockchainID(blkChainID),
+			internal_platformvm.WithBlockchainStatus(platformvm.Validating),
+			internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
+		)
+		took += bTook
+	}
 	return blkChainID, took, err
 }
 
 type Op struct {
 	dryMode bool
+	poll    bool
 }
 
 type OpOption func(*Op)
@@ -354,6 +350,12 @@ func (op *Op) applyOpts(opts []OpOption) {
 func WithDryMode(b bool) OpOption {
 	return func(op *Op) {
 		op.dryMode = b
+	}
+}
+
+func WithPoll(b bool) OpOption {
+	return func(op *Op) {
+		op.poll = b
 	}
 }
 
@@ -388,7 +390,7 @@ func (pc *p) stake(k key.Key, fee uint64) (
 			return nil, nil, nil, err
 		}
 		// assume "AssetID" is set to "AVAX" asset ID
-		if utxo.AssetID() != pc.cfg.AssetID {
+		if utxo.AssetID() != pc.assetID {
 			continue
 		}
 
@@ -423,7 +425,7 @@ func (pc *p) stake(k key.Key, fee uint64) (
 		if remainingValue > 0 {
 			// input had extra value, so some of it must be returned
 			outs = append(outs, &avax.TransferableOutput{
-				Asset: avax.Asset{ID: pc.cfg.AssetID},
+				Asset: avax.Asset{ID: pc.assetID},
 				Out: &secp256k1fx.TransferOutput{
 					Amt: remainingValue,
 					OutputOwners: secp256k1fx.OutputOwners{

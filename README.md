@@ -45,26 +45,90 @@ Once you have the network endpoints (either from local test scripts or from exis
 ```bash
 cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
 go install -v .
-
-cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
-subnet-cli create \
---enable-prompt=true \
---dry-mode=false \
---log-level=debug \
---private-key-path=.insecure.ewoq.key \
---uri=http://localhost:59114 \
---network-id=1337 \
---poll-interval=1s \
---request-timeout=2m \
---vm-name=my-custom-vm \
---vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
---vm-genesis-path=/tmp/my-custom-vm.genesis
 ```
 
-Example prompt and outputs are:
+### `subnet-cli create subnet`
 
-![table1](./img/table1.png)
+```bash
+# to create subnet only to the local cluster
+subnet-cli create subnet \
+--log-level=debug \
+--private-key-path=.insecure.ewoq.key \
+--uri=http://localhost:52250
+```
 
-![table2](./img/table2.png)
+![create-subnet-1](./img/create-subnet-1.png)
+![create-subnet-2](./img/create-subnet-2.png)
+
+```bash
+# to create subnet only to the test network
+subnet-cli create subnet \
+--log-level=debug \
+--private-key-path=.insecure.ewoq.key \
+--uri=https://api.avax-test.network
+```
+
+### `subnet-cli add validator`
+
+```bash
+subnet-cli add validator \
+--private-key-path=.insecure.ewoq.key \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--validate-weight=1000 \
+--uri=http://localhost:52250
+```
+
+![add-validator-1](./img/add-validator-1.png)
+![add-validator-2](./img/add-validator-2.png)
+
+```bash
+# for test network
+subnet-cli add validator \
+--private-key-path=.insecure.ewoq.key \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--validate-weight=1000 \
+--uri=https://api.avax-test.network
+```
+
+### `subnet-cli create blockchain`
+
+```bash
+subnet-cli create blockchain \
+--private-key-path=.insecure.ewoq.key \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--vm-name=myvm \
+--vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
+--vm-genesis-path=/tmp/myvm.genesis \
+--uri=http://localhost:52250
+```
+
+![create-blockchain-1](./img/create-blockchain-1.png)
+![create-blockchain-2](./img/create-blockchain-2.png)
+
+```bash
+subnet-cli create blockchain \
+--private-key-path=.insecure.ewoq.key \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--vm-name=myvm \
+--vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
+--vm-genesis-path=/tmp/myvm.genesis \
+--uri=https://api.avax-test.network
+```
+
+### `subnet-cli status blockchain`
+
+To check the status of the blockchain `8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba`:
+
+```bash
+subnet-cli status blockchain 8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba \
+--check-bootstrapped \
+--uri=http://localhost:52250
+```
+
+```bash
+subnet-cli status blockchain 8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba \
+--check-bootstrapped \
+--uri=https://api.avax-test.network
+```
 
 See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`](tests/e2e/e2e_test.go) for example tests.

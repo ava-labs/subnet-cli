@@ -152,20 +152,7 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	keyChain := secp256k1fx.NewKeychain()
 	keyChain.Add(privKey)
 
-	var hrp string
-	switch networkID {
-	case constants.LocalID:
-		hrp = constants.LocalHRP
-	case constants.FujiID:
-		hrp = constants.FujiHRP
-	case constants.MainnetID:
-		hrp = constants.MainnetHRP
-	default:
-		hrp = constants.FallbackHRP
-	}
-
 	m := &manager{
-		hrp:  hrp,
 		name: name,
 
 		privKey:        privKey,
@@ -174,6 +161,19 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 
 		keyChain: keyChain,
 	}
+
+	// Parse HRP to create valid address
+	switch networkID {
+	case constants.LocalID:
+		m.hrp = constants.LocalHRP
+	case constants.FujiID:
+		m.hrp = constants.FujiHRP
+	case constants.MainnetID:
+		m.hrp = constants.MainnetHRP
+	default:
+		m.hrp = constants.FallbackHRP
+	}
+
 	if err := m.updateAddr(); err != nil {
 		return nil, err
 	}

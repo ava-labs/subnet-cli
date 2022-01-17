@@ -31,7 +31,7 @@ func GetDefaultZapLoggerConfig() zap.Config {
 			Thereafter: 100,
 		},
 
-		Encoding: "json",
+		Encoding: "console",
 
 		// copied from "zap.NewProductionEncoderConfig" with some updates
 		EncoderConfig: zapcore.EncoderConfig{

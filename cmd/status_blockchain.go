@@ -2,7 +2,7 @@
 // See the file LICENSE for licensing terms.
 
 // Package implements "status" sub-commands.
-package status
+package cmd
 
 import (
 	"context"

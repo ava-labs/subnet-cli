@@ -1,8 +1,7 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package implements "status" sub-commands.
-package status
+package cmd
 
 import (
 	"time"

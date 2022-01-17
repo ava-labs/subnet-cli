@@ -1,8 +1,7 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package implements "create" sub-commands.
-package create
+package cmd
 
 import (
 	"bytes"
@@ -33,8 +32,8 @@ var (
 	requestTimeout time.Duration
 )
 
-// NewCommand implements "subnet-cli create" command.
-func NewCommand() *cobra.Command {
+// NewCreateCommand implements "subnet-cli create" command.
+func NewCreateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Sub-commands for creating resources",

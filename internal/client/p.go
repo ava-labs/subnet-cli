@@ -38,13 +38,11 @@ type P interface {
 	Client() platformvm.Client
 	Checker() internal_platformvm.Checker
 	Balance(key key.Key) (uint64, error)
-
 	CreateSubnet(
 		ctx context.Context,
 		key key.Key,
 		opts ...OpOption,
 	) (subnetID ids.ID, took time.Duration, err error)
-
 	AddSubnetValidator(
 		ctx context.Context,
 		k key.Key,
@@ -55,7 +53,6 @@ type P interface {
 		weight uint64,
 		opts ...OpOption,
 	) (took time.Duration, err error)
-
 	CreateBlockchain(
 		ctx context.Context,
 		key key.Key,

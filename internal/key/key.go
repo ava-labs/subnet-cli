@@ -13,13 +13,11 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 )
 
@@ -51,16 +49,8 @@ type Key interface {
 }
 
 type Addresser interface {
-	// X returns the X-Chain address.
-	X() string
 	// P returns the P-Chain address.
 	P() string
-	// C returns the C-Chain address.
-	C() string
-	// Eth returns the C-Chain address in ethereum format.
-	Eth() eth_common.Address
-	// Short returns the address in short ID format.
-	Short() ids.ShortID
 }
 
 type Spender interface {
@@ -79,17 +69,14 @@ type Spender interface {
 var _ Key = &manager{}
 
 type manager struct {
+	hrp  string
 	name string
 
 	privKey        *crypto.PrivateKeySECP256K1R
 	privKeyRaw     []byte
 	privKeyEncoded string
 
-	ethAddr   eth_common.Address
-	shortAddr ids.ShortID
-	xAddr     string
-	pAddr     string
-	cAddr     string
+	pAddr string
 
 	keyChain *secp256k1fx.Keychain
 }
@@ -104,7 +91,7 @@ const (
 
 var keyFactory = new(crypto.FactorySECP256K1R)
 
-func New(name string, opts ...OpOption) (Key, error) {
+func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
@@ -159,6 +146,19 @@ func New(name string, opts ...OpOption) (Key, error) {
 
 		keyChain: keyChain,
 	}
+
+	// Parse HRP to create valid address
+	switch networkID {
+	case constants.LocalID:
+		m.hrp = constants.LocalHRP
+	case constants.FujiID:
+		m.hrp = constants.FujiHRP
+	case constants.MainnetID:
+		m.hrp = constants.MainnetHRP
+	default:
+		m.hrp = constants.FallbackHRP
+	}
+
 	if err := m.updateAddr(); err != nil {
 		return nil, err
 	}
@@ -181,11 +181,7 @@ func (m *manager) Encode() string {
 	return m.privKeyEncoded
 }
 
-func (m *manager) X() string               { return m.xAddr }
-func (m *manager) P() string               { return m.pAddr }
-func (m *manager) C() string               { return m.cAddr }
-func (m *manager) Eth() eth_common.Address { return m.ethAddr }
-func (m *manager) Short() ids.ShortID      { return m.shortAddr }
+func (m *manager) P() string { return m.pAddr }
 
 func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
@@ -245,14 +241,14 @@ func (m *manager) Save(p string) error {
 }
 
 // Loads the private key from disk and creates the corresponding manager.
-func Load(keyPath string) (Key, error) {
+func Load(networkID uint32, keyPath string) (Key, error) {
 	kb, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// in case, it's already encoded
-	k, err := New(keyPath, WithPrivateKeyEncoded(string(kb)))
+	k, err := New(networkID, keyPath, WithPrivateKeyEncoded(string(kb)))
 	if err == nil {
 		return k, nil
 	}
@@ -283,7 +279,7 @@ func Load(keyPath string) (Key, error) {
 		return nil, ErrInvalidType
 	}
 
-	return New(keyPath, WithPrivateKey(privKey))
+	return New(networkID, keyPath, WithPrivateKey(privKey))
 }
 
 // readASCII reads into 'buf', stopping when the buffer is full or
@@ -347,23 +343,11 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 }
 
 func (m *manager) updateAddr() (err error) {
-	m.ethAddr = eth_crypto.PubkeyToAddress(m.privKey.ToECDSA().PublicKey)
-	m.shortAddr = m.privKey.PublicKey().Address()
-
 	pubBytes := m.privKey.PublicKey().Address().Bytes()
-	m.xAddr, err = formatting.FormatAddress("X", "custom", pubBytes)
+	m.pAddr, err = formatting.FormatAddress("P", m.hrp, pubBytes)
 	if err != nil {
 		return err
 	}
-	m.pAddr, err = formatting.FormatAddress("P", "custom", pubBytes)
-	if err != nil {
-		return err
-	}
-	m.cAddr, err = formatting.FormatAddress("C", "custom", pubBytes)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

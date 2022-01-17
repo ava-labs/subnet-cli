@@ -1,0 +1,43 @@
+// Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
+// See the file LICENSE for licensing terms.
+
+package cmd
+
+import (
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/onsi/ginkgo/v2/formatter"
+	"github.com/spf13/cobra"
+)
+
+// CreateCommand implements "subnet-cli create" command.
+func CreateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Sub-commands for creating resources",
+	}
+	cmd.AddCommand(
+		newCreateKeyCommand(),
+		newCreateSubnetCommand(),
+		newCreateBlockchainCommand(),
+	)
+	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
+	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
+	return cmd
+}
+
+func MakeCreateTable(i *Info) string {
+	buf, tb := BaseTableSetup(i)
+	if i.subnetID != ids.Empty {
+		tb.Append([]string{formatter.F("{{blue}}%s{{/}}", i.subnetIDType), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
+	}
+	if i.blockchainID != ids.Empty {
+		tb.Append([]string{formatter.F("{{blue}}CREATED BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.blockchainID)})
+	}
+	if i.vmName != "" {
+		tb.Append([]string{formatter.F("{{dark-green}}VM NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmName)})
+		tb.Append([]string{formatter.F("{{dark-green}}VM ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmID)})
+		tb.Append([]string{formatter.F("{{dark-green}}VM GENESIS PATH{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmGenesisPath)})
+	}
+	tb.Render()
+	return buf.String()
+}

@@ -1,17 +1,15 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package create
+package cmd
 
 import (
+	"os"
+
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/spf13/cobra"
 )
-
-func init() {
-	cobra.EnablePrefixMatching = true
-}
 
 func newCreateKeyCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -25,12 +23,15 @@ $ subnet-cli create key --private-key-path=.insecure.test.key
 `,
 		RunE: createKeyFunc,
 	}
-	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", "", "private key file path")
 	return cmd
 }
 
 func createKeyFunc(cmd *cobra.Command, args []string) error {
-	k, err := key.New("generated")
+	if _, err := os.Stat(privKeyPath); err == nil {
+		color.Outf("{{red}}key already found at %q{{/}}\n", privKeyPath)
+		return os.ErrExist
+	}
+	k, err := key.New(0, "generated")
 	if err != nil {
 		return err
 	}

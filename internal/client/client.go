@@ -35,11 +35,10 @@ type Config struct {
 var _ Client = &client{}
 
 type Client interface {
+	NetworkID() uint32
 	Config() Config
-
 	Info() Info
 	KeyStore() KeyStore
-
 	P() P
 }
 
@@ -144,7 +143,8 @@ func New(cfg Config) (Client, error) {
 	return cli, nil
 }
 
-func (cc *client) Config() Config { return cc.cfg }
+func (cc *client) NetworkID() uint32 { return cc.networkID }
+func (cc *client) Config() Config    { return cc.cfg }
 
 func (cc *client) Info() Info         { return cc.i }
 func (cc *client) KeyStore() KeyStore { return cc.k }

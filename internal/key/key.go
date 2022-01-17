@@ -351,15 +351,15 @@ func (m *manager) updateAddr() (err error) {
 	m.shortAddr = m.privKey.PublicKey().Address()
 
 	pubBytes := m.privKey.PublicKey().Address().Bytes()
-	m.xAddr, err = formatting.FormatAddress("X", "custom", pubBytes)
+	m.xAddr, err = formatting.FormatAddress("X", "fuji", pubBytes)
 	if err != nil {
 		return err
 	}
-	m.pAddr, err = formatting.FormatAddress("P", "custom", pubBytes)
+	m.pAddr, err = formatting.FormatAddress("P", "fuji", pubBytes)
 	if err != nil {
 		return err
 	}
-	m.cAddr, err = formatting.FormatAddress("C", "custom", pubBytes)
+	m.cAddr, err = formatting.FormatAddress("C", "fuji", pubBytes)
 	if err != nil {
 		return err
 	}

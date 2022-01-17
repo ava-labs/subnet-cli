@@ -16,3 +16,9 @@
 
 # goreleaser
 dist/
+
+# keys
+*.key
+
+# vim
+*.swp

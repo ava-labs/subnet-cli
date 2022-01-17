@@ -88,6 +88,10 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if nanoAvaxP < uint64(txFee.CreateSubnetTxFee) {
+		return fmt.Errorf("insuffient fee on %s (expected=%d, have=%d)", k.P(), txFee.CreateSubnetTxFee, nanoAvaxP)
+	}
+
 	s := status{
 		curPChainBalance:      nanoAvaxP,
 		txFee:                 uint64(txFee.TxFee),

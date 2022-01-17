@@ -17,7 +17,11 @@ type info struct {
 }
 
 func newInfo(cfg Config) *info {
-	cli := api_info.NewClient(cfg.URI, cfg.RequestTimeout)
+	// "NewClient" already appends "/ext/info"
+	// e.g., https://api.avax-test.network
+	// ref. https://docs.avax.network/build/avalanchego-apis/info
+	uri := cfg.u.Scheme + "://" + cfg.u.Host
+	cli := api_info.NewClient(uri, cfg.RequestTimeout)
 	return &info{
 		cli: cli,
 		cfg: cfg,

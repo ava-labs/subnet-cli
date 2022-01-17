@@ -17,7 +17,11 @@ type keyStore struct {
 }
 
 func newKeyStore(cfg Config) *keyStore {
-	cli := api_keystore.NewClient(cfg.URI, cfg.RequestTimeout)
+	// "NewClient" already appends "/ext/keystore"
+	// e.g., https://api.avax-test.network
+	// ref. https://docs.avax.network/build/avalanchego-apis/keystore
+	uri := cfg.u.Scheme + "://" + cfg.u.Host
+	cli := api_keystore.NewClient(uri, cfg.RequestTimeout)
 	return &keyStore{
 		cli: cli,
 		cfg: cfg,

@@ -6,6 +6,7 @@ package client
 
 import (
 	"errors"
+	"net/url"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -26,6 +27,7 @@ var (
 
 type Config struct {
 	URI            string
+	u              *url.URL
 	PollInterval   time.Duration
 	RequestTimeout time.Duration
 }
@@ -67,6 +69,12 @@ func New(cfg Config) (Client, error) {
 		return nil, ErrInvalidRequestTimeout
 	}
 
+	u, err := url.Parse(cfg.URI)
+	if err != nil {
+		return nil, err
+	}
+	cfg.u = u
+
 	cli := &client{
 		cfg:      cfg,
 		pChainID: avago_constants.PlatformChainID,
@@ -82,8 +90,17 @@ func New(cfg Config) (Client, error) {
 	cli.xChainID = xChainID
 	zap.L().Info("fetched X-Chain id", zap.String("id", cli.xChainID.String()))
 
-	zap.L().Info("fetching AVAX asset id")
-	xc := avm.NewClient(cfg.URI, cli.xChainID.String(), cfg.RequestTimeout)
+	uriX := u.Scheme + "://" + u.Host
+	xChainName := cli.xChainID.String()
+	if u.Port() == "" {
+		// ref. https://docs.avax.network/build/avalanchego-apis/x-chain
+		// e.g., https://api.avax-test.network
+		xChainName = "X"
+	}
+	zap.L().Info("fetching AVAX asset id",
+		zap.String("uri", uriX),
+	)
+	xc := avm.NewClient(uriX, xChainName, cfg.RequestTimeout)
 	avaxDesc, err := xc.GetAssetDescription("AVAX")
 	if err != nil {
 		return nil, err
@@ -105,7 +122,11 @@ func New(cfg Config) (Client, error) {
 		zap.String("networkName", cli.networkName),
 	)
 
-	pc := platformvm.NewClient(cfg.URI, cfg.RequestTimeout)
+	// "NewClient" already appends "/ext/P"
+	// e.g., https://api.avax-test.network
+	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain
+	uriP := u.Scheme + "://" + u.Host
+	pc := platformvm.NewClient(uriP, cfg.RequestTimeout)
 	cli.p = &p{
 		cfg: cfg,
 

@@ -212,6 +212,7 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// TODO: move to shared type
 type status struct {
 	curPChainBalance      uint64
 	txFee                 uint64
@@ -269,11 +270,7 @@ func (m status) Table(before bool) string {
 		tb.Append([]string{formatter.F("{{coral}}{{bold}}ESTIMATED P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", afterPChainDenominatedBalanceP)})
 	}
 
-	tb.Append([]string{formatter.F("{{cyan}}X-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.X())})
 	tb.Append([]string{formatter.F("{{cyan}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.P())})
-	tb.Append([]string{formatter.F("{{cyan}}C-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.C())})
-	tb.Append([]string{formatter.F("{{cyan}}ETH ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.Eth().String())})
-	tb.Append([]string{formatter.F("{{cyan}}SHORT ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.Short().String())})
 
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NODE ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.nodeID)})

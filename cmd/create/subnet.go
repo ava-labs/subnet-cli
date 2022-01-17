@@ -93,11 +93,8 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	s := status{
-		curPChainBalance:      nanoAvaxP,
-		txFee:                 uint64(txFee.TxFee),
-		subnetTxFee:           uint64(txFee.CreateSubnetTxFee),
-		createBlockchainTxFee: uint64(txFee.CreateBlockchainTxFee),
-		afterPChainBalance:    nanoAvaxP - uint64(txFee.CreateSubnetTxFee),
+		curPChainBalance: nanoAvaxP,
+		txFee:            uint64(txFee.CreateSubnetTxFee),
 
 		key: k,
 

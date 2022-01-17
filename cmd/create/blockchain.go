@@ -86,6 +86,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// TODO: move base status init to shared package
 	nanoAvaxP, err := cli.P().Balance(k)
 	if err != nil {
 		return err
@@ -111,12 +112,13 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if nanoAvaxP < uint64(txFee.CreateBlockchainTxFee) {
+		return fmt.Errorf("insuffient fee on %s (expected=%d, have=%d)", k.P(), txFee.CreateSubnetTxFee, nanoAvaxP)
+	}
+
 	s := status{
-		curPChainBalance:      nanoAvaxP,
-		txFee:                 uint64(txFee.TxFee),
-		subnetTxFee:           uint64(txFee.CreateSubnetTxFee),
-		createBlockchainTxFee: uint64(txFee.CreateBlockchainTxFee),
-		afterPChainBalance:    nanoAvaxP - uint64(txFee.CreateBlockchainTxFee),
+		curPChainBalance: nanoAvaxP,
+		txFee:            uint64(txFee.CreateBlockchainTxFee),
 
 		key: k,
 

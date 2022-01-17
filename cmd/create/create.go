@@ -48,11 +48,8 @@ func NewCommand() *cobra.Command {
 }
 
 type status struct {
-	curPChainBalance      uint64
-	txFee                 uint64
-	subnetTxFee           uint64
-	createBlockchainTxFee uint64
-	afterPChainBalance    uint64
+	curPChainBalance uint64
+	txFee            uint64
 
 	key key.Key
 
@@ -76,17 +73,8 @@ func (m status) Table(before bool) string {
 	curPChainDenominatedP := float64(m.curPChainBalance) / float64(units.Avax)
 	curPChainDenominatedBalanceP := humanize.FormatFloat("#,###.#######", curPChainDenominatedP)
 
-	subnetTxFee := float64(m.subnetTxFee) / float64(units.Avax)
-	subnetTxFees := humanize.FormatFloat("#,###.###", subnetTxFee)
-
 	txFee := float64(m.txFee) / float64(units.Avax)
 	txFees := humanize.FormatFloat("#,###.###", txFee)
-
-	createBlockchainTxFee := float64(m.createBlockchainTxFee) / float64(units.Avax)
-	createBlockchainTxFees := humanize.FormatFloat("#,###.###", createBlockchainTxFee)
-
-	afterPChainDenominatedP := float64(m.afterPChainBalance) / float64(units.Avax)
-	afterPChainDenominatedBalanceP := humanize.FormatFloat("#,###.#######", afterPChainDenominatedP)
 
 	buf := bytes.NewBuffer(nil)
 	tb := tablewriter.NewWriter(buf)
@@ -98,24 +86,11 @@ func (m status) Table(before bool) string {
 	tb.SetRowLine(true)
 	tb.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	tb.Append([]string{formatter.F("{{coral}}{{bold}}CURRENT P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
-	tb.Append([]string{formatter.F("{{red}}{{bold}}TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", txFees)})
-	tb.Append([]string{formatter.F("{{red}}{{bold}}CREATE SUBNET TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", subnetTxFees)})
-	tb.Append([]string{formatter.F("{{red}}{{bold}}CREATE BLOCKCHAIN TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", createBlockchainTxFees)})
-	if before {
-		tb.Append([]string{formatter.F("{{coral}}{{bold}}ESTIMATED P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", afterPChainDenominatedBalanceP)})
-	}
-
-	tb.Append([]string{formatter.F("{{cyan}}X-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.X())})
 	tb.Append([]string{formatter.F("{{cyan}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.P())})
-	tb.Append([]string{formatter.F("{{cyan}}C-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.C())})
-	tb.Append([]string{formatter.F("{{cyan}}ETH ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.Eth().String())})
-	tb.Append([]string{formatter.F("{{cyan}}SHORT ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.key.Short().String())})
-
+	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
+	tb.Append([]string{formatter.F("{{red}}{{bold}}TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", txFees)})
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.networkName)})
-	tb.Append([]string{formatter.F("{{orange}}POLL INTERVAL{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.pollInterval)})
-	tb.Append([]string{formatter.F("{{orange}}REQUEST TIMEOUT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.requestTimeout)})
 
 	if m.subnetID != ids.Empty {
 		tb.Append([]string{formatter.F("{{blue}}%s{{/}}", m.subnetIDType), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.subnetID)})

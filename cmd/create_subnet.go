@@ -47,7 +47,7 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	info.txFee = uint64(info.feeData.CreateSubnetTxFee)
 	info.subnetIDType = "EXPECTED SUBNET ID"
 	info.subnetID = sid
-	if info.CheckBalance(); err != nil {
+	if err := info.CheckBalance(); err != nil {
 		return err
 	}
 

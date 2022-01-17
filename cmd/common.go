@@ -73,11 +73,11 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	k, err := key.Load(cli.NetworkID(), privKeyPath)
+	info.key, err = key.Load(cli.NetworkID(), privKeyPath)
 	if err != nil {
 		return nil, nil, err
 	}
-	info.balance, err = cli.P().Balance(k)
+	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {
 		return nil, nil, err
 	}

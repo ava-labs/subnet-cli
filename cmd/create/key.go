@@ -30,10 +30,11 @@ $ subnet-cli create key --private-key-path=.insecure.test.key
 }
 
 func createKeyFunc(cmd *cobra.Command, args []string) error {
-	k, err := key.New("generated")
+	k, err := key.New(0, "generated")
 	if err != nil {
 		return err
 	}
+	// TODO: make sure not overwriting key
 	if err := k.Save(privKeyPath); err != nil {
 		return err
 	}

@@ -19,12 +19,14 @@ const (
 	ewoqCChainAddr      = "C-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
 	ewoqCChainEthAddr   = "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
 	ewoqCChainShortAddr = "6Y3kysjF9jnHnYkdS9yGAuoHyae2eNmeV"
+	fallbackNetworkID   = 999999 // unaffiliated networkID should trigger HRP Fallback
 )
 
 func TestNewKeyEwoq(t *testing.T) {
 	t.Parallel()
 
 	m, err := New(
+		fallbackNetworkID,
 		"ewoq",
 		WithPrivateKeyEncoded(EwoqPrivateKey),
 	)
@@ -53,7 +55,7 @@ func TestNewKeyEwoq(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m2, err := Load(keyPath)
+	m2, err := Load(fallbackNetworkID, keyPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +127,7 @@ func TestNewKey(t *testing.T) {
 		},
 	}
 	for i, tv := range tt {
-		m, err := New(tv.name, tv.opts...)
+		m, err := New(fallbackNetworkID, tv.name, tv.opts...)
 		if !errors.Is(err, tv.expErr) {
 			t.Fatalf("#%d: unexpected error %v, expected %v", i, err, tv.expErr)
 		}

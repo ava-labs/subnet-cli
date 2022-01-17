@@ -101,7 +101,7 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	k, err := key.Load(privKeyPath)
+	k, err := key.Load(cli.NetworkID(), privKeyPath)
 	if err != nil {
 		return err
 	}

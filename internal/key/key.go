@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -79,6 +80,7 @@ type Spender interface {
 var _ Key = &manager{}
 
 type manager struct {
+	hrp  string
 	name string
 
 	privKey        *crypto.PrivateKeySECP256K1R
@@ -104,7 +106,7 @@ const (
 
 var keyFactory = new(crypto.FactorySECP256K1R)
 
-func New(name string, opts ...OpOption) (Key, error) {
+func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
@@ -150,7 +152,20 @@ func New(name string, opts ...OpOption) (Key, error) {
 	keyChain := secp256k1fx.NewKeychain()
 	keyChain.Add(privKey)
 
+	var hrp string
+	switch networkID {
+	case constants.LocalID:
+		hrp = constants.LocalHRP
+	case constants.FujiID:
+		hrp = constants.FujiHRP
+	case constants.MainnetID:
+		hrp = constants.MainnetHRP
+	default:
+		hrp = constants.FallbackHRP
+	}
+
 	m := &manager{
+		hrp:  hrp,
 		name: name,
 
 		privKey:        privKey,
@@ -245,14 +260,14 @@ func (m *manager) Save(p string) error {
 }
 
 // Loads the private key from disk and creates the corresponding manager.
-func Load(keyPath string) (Key, error) {
+func Load(networkID uint32, keyPath string) (Key, error) {
 	kb, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// in case, it's already encoded
-	k, err := New(keyPath, WithPrivateKeyEncoded(string(kb)))
+	k, err := New(networkID, keyPath, WithPrivateKeyEncoded(string(kb)))
 	if err == nil {
 		return k, nil
 	}
@@ -283,7 +298,7 @@ func Load(keyPath string) (Key, error) {
 		return nil, ErrInvalidType
 	}
 
-	return New(keyPath, WithPrivateKey(privKey))
+	return New(networkID, keyPath, WithPrivateKey(privKey))
 }
 
 // readASCII reads into 'buf', stopping when the buffer is full or

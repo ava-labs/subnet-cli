@@ -57,5 +57,8 @@ func init() {
 }
 
 func Execute() error {
+	if err := CreateLogger(); err != nil {
+		return err
+	}
 	return rootCmd.Execute()
 }

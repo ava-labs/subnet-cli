@@ -57,8 +57,6 @@ $ subnet-cli add validator \
 }
 
 func createValidatorFunc(cmd *cobra.Command, args []string) error {
-	color.Outf("\n\n{{blue}}Setting up the configuration!{{/}}\n\n")
-
 	lcfg := logutil.GetDefaultZapLoggerConfig()
 	lcfg.Level = zap.NewAtomicLevelAt(logutil.ConvertToZapLevel(logLevel))
 	logger, err := lcfg.Build()

@@ -13,14 +13,11 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 )
 
@@ -52,16 +49,8 @@ type Key interface {
 }
 
 type Addresser interface {
-	// X returns the X-Chain address.
-	X() string
 	// P returns the P-Chain address.
 	P() string
-	// C returns the C-Chain address.
-	C() string
-	// Eth returns the C-Chain address in ethereum format.
-	Eth() eth_common.Address
-	// Short returns the address in short ID format.
-	Short() ids.ShortID
 }
 
 type Spender interface {
@@ -87,11 +76,7 @@ type manager struct {
 	privKeyRaw     []byte
 	privKeyEncoded string
 
-	ethAddr   eth_common.Address
-	shortAddr ids.ShortID
-	xAddr     string
-	pAddr     string
-	cAddr     string
+	pAddr string
 
 	keyChain *secp256k1fx.Keychain
 }
@@ -196,11 +181,7 @@ func (m *manager) Encode() string {
 	return m.privKeyEncoded
 }
 
-func (m *manager) X() string               { return m.xAddr }
-func (m *manager) P() string               { return m.pAddr }
-func (m *manager) C() string               { return m.cAddr }
-func (m *manager) Eth() eth_common.Address { return m.ethAddr }
-func (m *manager) Short() ids.ShortID      { return m.shortAddr }
+func (m *manager) P() string { return m.pAddr }
 
 func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
@@ -362,23 +343,11 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 }
 
 func (m *manager) updateAddr() (err error) {
-	m.ethAddr = eth_crypto.PubkeyToAddress(m.privKey.ToECDSA().PublicKey)
-	m.shortAddr = m.privKey.PublicKey().Address()
-
 	pubBytes := m.privKey.PublicKey().Address().Bytes()
-	m.xAddr, err = formatting.FormatAddress("X", m.hrp, pubBytes)
-	if err != nil {
-		return err
-	}
 	m.pAddr, err = formatting.FormatAddress("P", m.hrp, pubBytes)
 	if err != nil {
 		return err
 	}
-	m.cAddr, err = formatting.FormatAddress("C", m.hrp, pubBytes)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

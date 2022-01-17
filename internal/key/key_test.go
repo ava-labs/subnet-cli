@@ -14,12 +14,8 @@ import (
 )
 
 const (
-	ewoqXChainAddr      = "X-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
-	ewoqPChainAddr      = "P-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
-	ewoqCChainAddr      = "C-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
-	ewoqCChainEthAddr   = "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
-	ewoqCChainShortAddr = "6Y3kysjF9jnHnYkdS9yGAuoHyae2eNmeV"
-	fallbackNetworkID   = 999999 // unaffiliated networkID should trigger HRP Fallback
+	ewoqPChainAddr    = "P-custom18jma8ppw3nhx5r4ap8clazz0dps7rv5u9xde7p"
+	fallbackNetworkID = 999999 // unaffiliated networkID should trigger HRP Fallback
 )
 
 func TestNewKeyEwoq(t *testing.T) {
@@ -34,20 +30,8 @@ func TestNewKeyEwoq(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if m.X() != ewoqXChainAddr {
-		t.Fatalf("unexpected X-Chain address %q, expected %q", m.X(), ewoqXChainAddr)
-	}
 	if m.P() != ewoqPChainAddr {
 		t.Fatalf("unexpected P-Chain address %q, expected %q", m.P(), ewoqPChainAddr)
-	}
-	if m.C() != ewoqCChainAddr {
-		t.Fatalf("unexpected C-Chain address %q, expected %q", m.C(), ewoqCChainAddr)
-	}
-	if m.Eth().String() != ewoqCChainEthAddr {
-		t.Fatalf("unexpected ETH C-Chain address %q, expected %q", m.Eth(), ewoqCChainEthAddr)
-	}
-	if m.Short().String() != ewoqCChainShortAddr {
-		t.Fatalf("unexpected short address %q, expected %q", m.Short(), ewoqCChainShortAddr)
 	}
 
 	keyPath := filepath.Join(t.TempDir(), "key.pk")

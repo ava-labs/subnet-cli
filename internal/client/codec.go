@@ -10,7 +10,6 @@ import (
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
-	"github.com/ava-labs/coreth/plugin/evm"
 )
 
 var (
@@ -68,28 +67,6 @@ func init() {
 		pc.RegisterType(&platformvm.StakeableLockIn{}),
 		pc.RegisterType(&platformvm.StakeableLockOut{}),
 		pCodecManager.RegisterCodec(0, pc),
-	)
-	if errs.Errored() {
-		panic(errs.Err)
-	}
-
-	cc := linearcodec.NewDefault()
-	cCodecManager = codec.NewDefaultManager()
-	errs = wrappers.Errs{}
-	errs.Add(
-		cc.RegisterType(&evm.UnsignedImportTx{}),
-		cc.RegisterType(&evm.UnsignedExportTx{}),
-	)
-	cc.SkipRegistrations(3)
-	errs.Add(
-		cc.RegisterType(&secp256k1fx.TransferInput{}),
-		cc.RegisterType(&secp256k1fx.MintOutput{}),
-		cc.RegisterType(&secp256k1fx.TransferOutput{}),
-		cc.RegisterType(&secp256k1fx.MintOperation{}),
-		cc.RegisterType(&secp256k1fx.Credential{}),
-		cc.RegisterType(&secp256k1fx.Input{}),
-		cc.RegisterType(&secp256k1fx.OutputOwners{}),
-		cCodecManager.RegisterCodec(0, cc),
 	)
 	if errs.Errored() {
 		panic(errs.Err)

@@ -44,7 +44,7 @@ $ subnet-cli create blockchain \
 }
 
 func createBlockchainFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient()
+	cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}

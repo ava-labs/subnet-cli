@@ -19,6 +19,8 @@ import (
 )
 
 type Info struct {
+	uri string
+
 	balance uint64
 	feeData *info.GetTxFeeResponse
 	txFee   uint64
@@ -45,21 +47,12 @@ type Info struct {
 	validateWeight uint64
 }
 
-func InitClient() (client.Client, *Info, error) {
+func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	cli, err := client.New(client.Config{
 		URI:            uri,
 		PollInterval:   pollInterval,
 		RequestTimeout: requestTimeout,
 	})
-	if err != nil {
-		return nil, nil, err
-	}
-	k, err := key.Load(cli.NetworkID(), privKeyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	balance, err := cli.P().Balance(k)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,13 +64,23 @@ func InitClient() (client.Client, *Info, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
 	info := &Info{
-		balance:     balance,
+		uri:         uri,
 		feeData:     txFee,
 		networkName: networkName,
 	}
+	if !loadKey {
+		return cli, info, nil
+	}
 
+	k, err := key.Load(cli.NetworkID(), privKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	info.balance, err = cli.P().Balance(k)
+	if err != nil {
+		return nil, nil, err
+	}
 	return cli, info, nil
 }
 
@@ -122,7 +125,7 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	if i.txFee != 0 {
 		tb.Append([]string{formatter.F("{{red}}{{bold}}TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", txFees)})
 	}
-	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", uri)})
+	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.networkName)})
 	return buf, tb
 }

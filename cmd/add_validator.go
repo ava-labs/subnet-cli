@@ -26,7 +26,7 @@ Adds a subnet to the validator.
 
 $ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
---uri=http://localhost:52250 \
+--public-uri=http://localhost:52250 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
 --node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --validate-weight=1000
@@ -47,7 +47,7 @@ $ subnet-cli add validator \
 }
 
 func createValidatorFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient()
+	cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ Creates a subnet based on the configuration.
 
 $ subnet-cli create subnet \
 --private-key-path=.insecure.ewoq.key \
---uri=http://localhost:52250
+--public-uri=http://localhost:52250
 
 `,
 		RunE: createSubnetFunc,
@@ -34,7 +34,7 @@ $ subnet-cli create subnet \
 }
 
 func createSubnetFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient()
+	cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}

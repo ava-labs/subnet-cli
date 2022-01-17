@@ -20,8 +20,7 @@ func AddCommand() *cobra.Command {
 	cmd.AddCommand(
 		newAddValidatorCommand(),
 	)
-
-	cmd.PersistentFlags().StringVar(&uri, "uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
+	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
 	return cmd
 }

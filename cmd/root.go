@@ -23,7 +23,8 @@ var (
 
 	privKeyPath string
 
-	uri string
+	privateURI string
+	publicURI  string
 
 	pollInterval   time.Duration
 	requestTimeout time.Duration
@@ -38,6 +39,9 @@ var (
 	vmName        string
 	vmIDs         string
 	vmGenesisPath string
+
+	blockchainID      string
+	checkBootstrapped bool
 )
 
 func init() {

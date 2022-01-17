@@ -13,11 +13,9 @@ func StatusCommand() *cobra.Command {
 		Use:   "status",
 		Short: "status commands",
 	}
-
 	cmd.AddCommand(
 		newStatusBlockchainCommand(),
 	)
-
-	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
+	cmd.PersistentFlags().StringVar(&privateURI, "private-uri", "", "URI for avalanche network endpoints")
 	return cmd
 }

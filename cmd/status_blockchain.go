@@ -10,14 +10,9 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/ava-labs/subnet-cli/internal/client"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/spf13/cobra"
-)
-
-var (
-	checkBootstrapped bool
 )
 
 func newStatusBlockchainCommand() *cobra.Command {
@@ -27,14 +22,16 @@ func newStatusBlockchainCommand() *cobra.Command {
 		Long: `
 Checks the status of the blockchain.
 
-$ subnet-cli status blockchain [BLOCKCHAIN ID] \
---uri=http://localhost:49738 \
+$ subnet-cli status blockchain \
+--blockchain-id=[BLOCKCHAIN ID] \
+--private-uri=http://localhost:49738 \
 --check-bootstrapped
 
 `,
 		RunE: createStatusFunc,
 	}
 
+	cmd.PersistentFlags().StringVar(&blockchainID, "blockchain-id", "", "blockchain to check the status of")
 	cmd.PersistentFlags().BoolVar(&checkBootstrapped, "check-bootstrapped", false, "'true' to wait until the blockchain is bootstrapped")
 	return cmd
 }
@@ -42,15 +39,7 @@ $ subnet-cli status blockchain [BLOCKCHAIN ID] \
 var errInvalidArgs = errors.New("invalid arguments")
 
 func createStatusFunc(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return errInvalidArgs
-	}
-
-	cli, err := client.New(client.Config{
-		URI:            uri,
-		PollInterval:   pollInterval,
-		RequestTimeout: requestTimeout,
-	})
+	cli, _, err := InitClient(privateURI, false)
 	if err != nil {
 		return err
 	}

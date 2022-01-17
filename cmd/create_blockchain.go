@@ -22,13 +22,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	subnetIDs     string
-	vmName        string
-	vmIDs         string
-	vmGenesisPath string
-)
-
 func newCreateBlockchainCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "blockchain [options]",
@@ -46,13 +39,6 @@ $ subnet-cli create blockchain \
 `,
 		RunE: createBlockchainFunc,
 	}
-
-	cmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
-	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", "", "private key file path")
-	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
-	cmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringVar(&vmName, "vm-name", "", "VM name")

@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewAddCommand implements "subnet-cli add" command.
-func NewAddCommand() *cobra.Command {
+// AddCommand implements "subnet-cli add" command.
+func AddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add",
 		Short: "Sub-commands for creating resources",
@@ -16,5 +16,7 @@ func NewAddCommand() *cobra.Command {
 	cmd.AddCommand(
 		newAddValidatorCommand(),
 	)
+
+	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
 	return cmd
 }

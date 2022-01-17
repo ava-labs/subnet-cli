@@ -26,25 +26,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	enablePrompt bool
-	logLevel     string
-
-	privKeyPath string
-
-	uri string
-
-	pollInterval   time.Duration
-	requestTimeout time.Duration
-
-	subnetIDs string
-	nodeIDs   string
-
-	validateStarts string
-	validateEnds   string
-	validateWeight uint64
-)
-
 func newAddValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validator",
@@ -60,15 +41,8 @@ $ subnet-cli add validator \
 --validate-weight=1000
 
 `,
-		RunE: createSubnetFunc,
+		RunE: createValidatorFunc,
 	}
-
-	cmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
-	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", "", "private key file path")
-	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
-	cmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
@@ -82,7 +56,7 @@ $ subnet-cli add validator \
 	return cmd
 }
 
-func createSubnetFunc(cmd *cobra.Command, args []string) error {
+func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	color.Outf("\n\n{{blue}}Setting up the configuration!{{/}}\n\n")
 
 	lcfg := logutil.GetDefaultZapLoggerConfig()

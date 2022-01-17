@@ -9,10 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	cobra.EnablePrefixMatching = true
-}
-
 func newCreateKeyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "key [options]",
@@ -25,7 +21,6 @@ $ subnet-cli create key --private-key-path=.insecure.test.key
 `,
 		RunE: createKeyFunc,
 	}
-	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", "", "private key file path")
 	return cmd
 }
 

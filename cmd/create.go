@@ -16,24 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	cobra.EnablePrefixMatching = true
-}
-
-var (
-	enablePrompt bool
-	logLevel     string
-
-	privKeyPath string
-
-	uri string
-
-	pollInterval   time.Duration
-	requestTimeout time.Duration
-)
-
-// NewCreateCommand implements "subnet-cli create" command.
-func NewCreateCommand() *cobra.Command {
+// CreateCommand implements "subnet-cli create" command.
+func CreateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Sub-commands for creating resources",
@@ -43,6 +27,7 @@ func NewCreateCommand() *cobra.Command {
 		newCreateSubnetCommand(),
 		newCreateBlockchainCommand(),
 	)
+	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
 	return cmd
 }
 

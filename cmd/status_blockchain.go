@@ -21,10 +21,6 @@ import (
 )
 
 var (
-	logLevel          string
-	uri               string
-	pollInterval      time.Duration
-	requestTimeout    time.Duration
 	checkBootstrapped bool
 )
 
@@ -43,11 +39,6 @@ $ subnet-cli status blockchain [BLOCKCHAIN ID] \
 		RunE: createStatusFunc,
 	}
 
-	// TODO: don't need here and in root cmd
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
-	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
-	cmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")
-	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 	cmd.PersistentFlags().BoolVar(&checkBootstrapped, "check-bootstrapped", false, "'true' to wait until the blockchain is bootstrapped")
 
 	return cmd

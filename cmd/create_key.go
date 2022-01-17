@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/spf13/cobra"
@@ -25,11 +27,14 @@ $ subnet-cli create key --private-key-path=.insecure.test.key
 }
 
 func createKeyFunc(cmd *cobra.Command, args []string) error {
+	if _, err := os.Stat(privKeyPath); err == nil {
+		color.Outf("{{red}}key already found at %q{{/}}\n", privKeyPath)
+		return os.ErrExist
+	}
 	k, err := key.New(0, "generated")
 	if err != nil {
 		return err
 	}
-	// TODO: make sure not overwriting key
 	if err := k.Save(privKeyPath); err != nil {
 		return err
 	}

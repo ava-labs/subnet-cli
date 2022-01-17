@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
@@ -35,8 +34,6 @@ $ subnet-cli status blockchain \
 	cmd.PersistentFlags().BoolVar(&checkBootstrapped, "check-bootstrapped", false, "'true' to wait until the blockchain is bootstrapped")
 	return cmd
 }
-
-var errInvalidArgs = errors.New("invalid arguments")
 
 func createStatusFunc(cmd *cobra.Command, args []string) error {
 	cli, _, err := InitClient(privateURI, false)

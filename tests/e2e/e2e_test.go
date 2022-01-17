@@ -79,7 +79,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	})
 	gomega.Ω(err).Should(gomega.BeNil())
 
-	k, err = key.New("ewoq", key.WithPrivateKeyEncoded(key.EwoqPrivateKey))
+	k, err = key.New(9999999, "test", key.WithPrivateKeyEncoded(key.EwoqPrivateKey))
 	gomega.Ω(err).Should(gomega.BeNil())
 })
 

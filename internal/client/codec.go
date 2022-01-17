@@ -7,41 +7,18 @@ import (
 	"github.com/ava-labs/avalanchego/codec"
 	"github.com/ava-labs/avalanchego/codec/linearcodec"
 	"github.com/ava-labs/avalanchego/utils/wrappers"
-	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
-	xCodecManager codec.Manager
 	pCodecManager codec.Manager
-	cCodecManager codec.Manager
 )
 
 func init() {
-	xc := linearcodec.NewDefault()
-	xCodecManager = codec.NewDefaultManager()
-	errs := wrappers.Errs{}
-	errs.Add(
-		xc.RegisterType(&avm.BaseTx{}),
-		xc.RegisterType(&avm.CreateAssetTx{}),
-		xc.RegisterType(&avm.OperationTx{}),
-		xc.RegisterType(&avm.ImportTx{}),
-		xc.RegisterType(&avm.ExportTx{}),
-		xc.RegisterType(&secp256k1fx.TransferInput{}),
-		xc.RegisterType(&secp256k1fx.MintOutput{}),
-		xc.RegisterType(&secp256k1fx.TransferOutput{}),
-		xc.RegisterType(&secp256k1fx.MintOperation{}),
-		xc.RegisterType(&secp256k1fx.Credential{}),
-		xCodecManager.RegisterCodec(0, xc),
-	)
-	if errs.Errored() {
-		panic(errs.Err)
-	}
-
 	pc := linearcodec.NewDefault()
 	pCodecManager = codec.NewDefaultManager()
-	errs = wrappers.Errs{}
+	errs := wrappers.Errs{}
 	errs.Add(
 		pc.RegisterType(&platformvm.ProposalBlock{}),
 		pc.RegisterType(&platformvm.AbortBlock{}),

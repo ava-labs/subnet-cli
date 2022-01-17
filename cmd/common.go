@@ -15,6 +15,7 @@ import (
 
 	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
+	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
 )
 
@@ -28,9 +29,6 @@ type Info struct {
 	key key.Key
 
 	networkName string
-
-	pollInterval   time.Duration
-	requestTimeout time.Duration
 
 	subnetIDType string
 	subnetID     ids.ID
@@ -96,8 +94,9 @@ func CreateLogger() error {
 }
 
 func (i *Info) CheckBalance() error {
-	if i.balance < uint64(i.txFee) {
-		return fmt.Errorf("insuffient fee on %s (expected=%d, have=%d)", i.key.P(), i.txFee, i.balance)
+	if i.balance < i.txFee {
+		color.Outf("{{read}}insufficient funds to perform operation...get more at https://faucet.avax-test.network")
+		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee, i.balance)
 	}
 	return nil
 }

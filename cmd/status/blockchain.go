@@ -43,6 +43,7 @@ $ subnet-cli status blockchain [BLOCKCHAIN ID] \
 		RunE: createStatusFunc,
 	}
 
+	// TODO: don't need here and in root cmd
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
 	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")

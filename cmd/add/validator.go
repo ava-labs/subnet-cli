@@ -212,7 +212,7 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// TODO: move to shared type
+// TODO: move to shared type with create
 type status struct {
 	curPChainBalance      uint64
 	txFee                 uint64

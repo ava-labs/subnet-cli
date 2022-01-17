@@ -37,7 +37,9 @@ var (
 	pollInterval   time.Duration
 	requestTimeout time.Duration
 
-	subnetIDs      string
+	subnetIDs string
+	nodeIDs   string
+
 	validateStarts string
 	validateEnds   string
 	validateWeight uint64
@@ -54,6 +56,7 @@ $ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --uri=http://localhost:52250 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --validate-weight=1000
 
 `,
@@ -68,6 +71,7 @@ $ subnet-cli add validator \
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
+	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
 
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(2 * 24 * time.Hour)
@@ -114,10 +118,6 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	nodeIDs, err := cli.Info().Client().GetNodeID()
-	if err != nil {
-		return err
-	}
 	nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
 	if err != nil {
 		return err
@@ -134,6 +134,11 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if nanoAvaxP < uint64(txFee.TxFee) {
+		return fmt.Errorf("insuffient fee on %s (expected=%d, have=%d)", k.P(), txFee.TxFee, nanoAvaxP)
+	}
+
 	s := status{
 		curPChainBalance:      nanoAvaxP,
 		txFee:                 uint64(txFee.TxFee),

@@ -11,9 +11,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
-var (
-	pCodecManager codec.Manager
-)
+var pCodecManager codec.Manager
 
 func init() {
 	pc := linearcodec.NewDefault()

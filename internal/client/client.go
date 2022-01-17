@@ -37,10 +37,8 @@ var _ Client = &client{}
 type Client interface {
 	NetworkID() uint32
 	Config() Config
-
 	Info() Info
 	KeyStore() KeyStore
-
 	P() P
 }
 

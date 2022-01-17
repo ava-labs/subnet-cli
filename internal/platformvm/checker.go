@@ -124,7 +124,6 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 	}
 
 	zap.L().Info("polling blockchain",
-		zap.String("subnetId", ret.subnetID.String()),
 		zap.String("blockchainId", ret.blockchainID.String()),
 		zap.String("expectedBlockchainStatus", ret.blockchainStatus.String()),
 	)
@@ -145,7 +144,7 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 				return false, err
 			}
 			if status != ret.blockchainStatus {
-				zap.L().Debug("waiting for blockchain status",
+				zap.L().Info("waiting for blockchain status",
 					zap.String("current", status.String()),
 				)
 				return false, nil
@@ -155,6 +154,7 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 				return true, nil
 			}
 		}
+
 		bootstrapped, err := ret.info.IsBootstrapped(ret.blockchainID.String())
 		if err != nil {
 			return false, err

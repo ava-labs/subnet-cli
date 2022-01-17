@@ -1,14 +1,12 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package create implements "create" commands.
-package create
+package add
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -23,88 +21,64 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/manifoldco/promptui"
 	"github.com/olekukonko/tablewriter"
-	formatter "github.com/onsi/ginkgo/v2/formatter"
+	"github.com/onsi/ginkgo/v2/formatter"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
-func init() {
-	cobra.EnablePrefixMatching = true
-}
-
 var (
-	enablePrompt   bool
-	dryMode        bool
-	privKeyPath    string
-	logLevel       string
-	uri            string
-	networkID      uint32
+	enablePrompt bool
+	logLevel     string
+
+	privKeyPath string
+
+	uri string
+
 	pollInterval   time.Duration
 	requestTimeout time.Duration
 
+	subnetIDs      string
 	validateStarts string
 	validateEnds   string
 	validateWeight uint64
-
-	vmName        string
-	vmID          string
-	vmGenesisPath string
 )
 
-// NewCommand implements "subnet-cli create" command.
-func NewCommand() *cobra.Command {
+func newAddValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create [options]",
-		Short: "Creates a subnet and blockchain for the custom VM.",
+		Use:   "validator",
+		Short: "Adds a subnet to the validator",
 		Long: `
-Creates a subnet based on the configuration.
+Adds a subnet to the validator.
 
-# try with the pre-funded ewoq key
-# use 1337 for network-runner local cluster
-$ subnet-cli create \
---enable-prompt=true \
---dry-mode=false \
---log-level=debug \
+$ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
---uri=http://localhost:49738 \
---network-id=1337 \
---poll-interval=1s \
---request-timeout=2m \
---validate-start="2022-01-02T15:04:05Z07:00" \
---validate-end="2022-01-02T19:04:05Z07:00" \
---validate-weight=1000 \
---vm-name=my-custom-vm \
---vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
---vm-genesis-path=.my-custom-vm.genesis
+--uri=http://localhost:52250 \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--validate-weight=1000
 
 `,
-		RunE: createFunc,
+		RunE: createSubnetFunc,
 	}
 
 	cmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")
-	cmd.PersistentFlags().BoolVar(&dryMode, "dry-mode", true, "'true' to enable dry mode, must be 'false' to create blockchain resources")
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", "", "private key file path")
 	cmd.PersistentFlags().StringVar(&uri, "uri", "", "URI for avalanche network endpoints")
-	cmd.PersistentFlags().Uint32Var(&networkID, "network-id", 0, "network ID defined in the genesis file")
 	cmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 
+	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
+
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(2 * 24 * time.Hour)
-
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")
 
-	cmd.PersistentFlags().StringVar(&vmName, "vm-name", "", "VM name")
-	cmd.PersistentFlags().StringVar(&vmID, "vm-id", "", "VM ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().StringVar(&vmGenesisPath, "vm-genesis-path", "", "VM genesis file path")
-
 	return cmd
 }
 
-func createFunc(cmd *cobra.Command, args []string) error {
+func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	color.Outf("\n\n{{blue}}Setting up the configuration!{{/}}\n\n")
 
 	lcfg := logutil.GetDefaultZapLoggerConfig()
@@ -116,22 +90,13 @@ func createFunc(cmd *cobra.Command, args []string) error {
 	_ = zap.ReplaceGlobals(logger)
 
 	cli, err := client.New(client.Config{
-		RootCtx: context.Background(),
-		URI:     uri,
-
-		NetworkID: networkID,
-
-		AssetID:  ids.Empty, // to auto-fetch by client
-		PChainID: ids.Empty, // to auto-fetch by client
-		XChainID: ids.Empty, // to auto-fetch by client
-
+		URI:            uri,
 		PollInterval:   pollInterval,
 		RequestTimeout: requestTimeout,
 	})
 	if err != nil {
 		return err
 	}
-
 	k, err := key.Load(privKeyPath)
 	if err != nil {
 		return err
@@ -141,17 +106,14 @@ func createFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	txFee, err := cli.Info().Client().GetTxFee()
 	if err != nil {
 		return err
 	}
-
 	networkName, err := cli.Info().Client().GetNetworkName()
 	if err != nil {
 		return err
 	}
-
 	nodeIDs, err := cli.Info().Client().GetNodeID()
 	if err != nil {
 		return err
@@ -160,7 +122,10 @@ func createFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
+	subnetID, err := ids.FromString(subnetIDs)
+	if err != nil {
+		return err
+	}
 	validateStart, err := time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
 		return err
@@ -169,53 +134,30 @@ func createFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	vid, err := ids.FromString(vmID)
-	if err != nil {
-		return err
-	}
-	vmGenesisBytes, err := ioutil.ReadFile(vmGenesisPath)
-	if err != nil {
-		return err
-	}
-
-	expectedSubnetID, _, err := cli.P().CreateSubnet(k, client.WithDryMode(true))
-	if err != nil {
-		return err
-	}
-
-	m := status{
+	s := status{
 		curPChainBalance:      nanoAvaxP,
 		txFee:                 uint64(txFee.TxFee),
 		subnetTxFee:           uint64(txFee.CreateSubnetTxFee),
 		createBlockchainTxFee: uint64(txFee.CreateBlockchainTxFee),
+		afterPChainBalance:    nanoAvaxP - uint64(txFee.TxFee),
 
 		key: k,
 
-		uri:    uri,
-		nodeID: nodeID,
-
+		uri:         uri,
+		nodeID:      nodeID,
 		networkName: networkName,
-		networkID:   networkID,
 
 		pollInterval:   pollInterval,
 		requestTimeout: requestTimeout,
 
+		subnetID:       subnetID,
 		validateStart:  validateStart,
 		validateEnd:    validateEnd,
 		validateWeight: validateWeight,
-
-		vmName:        vmName,
-		vmID:          vid,
-		vmGenesisPath: vmGenesisPath,
-
-		subnetIDType: "EXPECTED SUBNET ID",
-		subnetID:     expectedSubnetID,
 	}
-	m.afterPChainBalance = m.curPChainBalance - m.txFee - m.subnetTxFee - m.createBlockchainTxFee
-	msg := m.Table(true)
+	msg := s.Table(true)
 	if enablePrompt {
-		msg = formatter.F("\n{{blue}}{{bold}}Ready to create subnet resources, should we continue?{{/}}\n") + msg
+		msg = formatter.F("\n{{blue}}{{bold}}Ready to add subnet validator, should we continue?{{/}}\n") + msg
 	}
 	fmt.Fprint(formatter.ColorableStdOut, msg)
 
@@ -236,57 +178,32 @@ func createFunc(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
-	if dryMode {
-		return nil
-	}
 
 	println()
 	println()
 	println()
-	returned, took, err := cli.P().CreateSubnet(k, client.WithDryMode(false))
-	if err != nil {
-		return err
-	}
-	m.subnetIDType = "CREATED SUBNET ID"
-	m.subnetID = returned
-
-	// TODO: call whitelisting
-	color.Outf("{{magenta}}created subnet{{/}} %q {{light-gray}}(took %v){{/}}\n", m.subnetID, took)
-	color.Outf("({{orange}}subnet must be whitelisted beforehand via{{/}} {{cyan}}{{bold}}--whitelisted-subnets{{/}} {{orange}}flag!{{/}})\n\n")
-
-	took, err = cli.P().AddSubnetValidator(
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	took, err := cli.P().AddSubnetValidator(
+		ctx,
 		k,
-		m.subnetID,
-		m.nodeID,
+		s.subnetID,
+		s.nodeID,
 		validateStart,
 		validateEnd,
 		validateWeight,
 	)
+	cancel()
 	if err != nil {
 		return err
 	}
-	color.Outf("{{magenta}}added subnet to validator{{/}} %q {{light-gray}}(took %v){{/}}\n\n", m.subnetID, took)
-
-	m.blkChainID, took, err = cli.P().CreateBlockchain(
-		k,
-		m.subnetID,
-		m.vmName,
-		m.vmID,
-		vmGenesisBytes,
-	)
-	if err != nil {
-		return err
-	}
-	color.Outf("{{magenta}}created blockchain{{/}} %q {{light-gray}}(took %v){{/}}\n\n", m.blkChainID, took)
+	color.Outf("{{magenta}}added subnet to validator{{/}} %q {{light-gray}}(took %v){{/}}\n\n", s.subnetID, took)
 
 	nanoAvaxP, err = cli.P().Balance(k)
 	if err != nil {
 		return err
 	}
-	m.curPChainBalance = nanoAvaxP
-	m.afterPChainBalance = m.curPChainBalance - m.txFee - m.subnetTxFee - m.createBlockchainTxFee
-
-	fmt.Fprint(formatter.ColorableStdOut, m.Table(false))
+	s.curPChainBalance = nanoAvaxP
+	fmt.Fprint(formatter.ColorableStdOut, s.Table(false))
 	return nil
 }
 
@@ -299,26 +216,17 @@ type status struct {
 
 	key key.Key
 
-	uri    string
-	nodeID ids.ShortID
-
+	uri         string
+	nodeID      ids.ShortID
 	networkName string
-	networkID   uint32
 
 	pollInterval   time.Duration
 	requestTimeout time.Duration
 
+	subnetID       ids.ID
 	validateStart  time.Time
 	validateEnd    time.Time
 	validateWeight uint64
-
-	vmName        string
-	vmID          ids.ID
-	vmGenesisPath string
-
-	subnetIDType string
-	subnetID     ids.ID
-	blkChainID   ids.ID
 }
 
 func (m status) Table(before bool) string {
@@ -364,25 +272,14 @@ func (m status) Table(before bool) string {
 
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NODE ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.nodeID)})
-	tb.Append([]string{formatter.F("{{orange}}NETWORK ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%d{{/}}", m.networkID)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.networkName)})
 	tb.Append([]string{formatter.F("{{orange}}POLL INTERVAL{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.pollInterval)})
 	tb.Append([]string{formatter.F("{{orange}}REQUEST TIMEOUT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.requestTimeout)})
 
+	tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.subnetID)})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.validateStart.Format(time.RFC3339))})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.validateEnd.Format(time.RFC3339))})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE WEIGHT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(m.validateWeight)))})
-
-	tb.Append([]string{formatter.F("{{dark-green}}VM NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.vmName)})
-	tb.Append([]string{formatter.F("{{dark-green}}VM ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.vmID)})
-	tb.Append([]string{formatter.F("{{dark-green}}VM GENESIS PATH{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.vmGenesisPath)})
-
-	if m.subnetID != ids.Empty {
-		tb.Append([]string{formatter.F("{{blue}}%s{{/}}", m.subnetIDType), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.subnetID)})
-	}
-	if m.blkChainID != ids.Empty {
-		tb.Append([]string{formatter.F("{{blue}}CREATED BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", m.blkChainID)})
-	}
 
 	tb.Render()
 	return buf.String()

@@ -28,13 +28,11 @@ type Poller interface {
 var _ Poller = &poller{}
 
 type poller struct {
-	rootCtx  context.Context
 	interval time.Duration
 }
 
-func New(rootCtx context.Context, interval time.Duration) Poller {
+func New(interval time.Duration) Poller {
 	return &poller{
-		rootCtx:  rootCtx,
 		interval: interval,
 	}
 }
@@ -47,10 +45,10 @@ func (pl *poller) Poll(ctx context.Context, check func() (done bool, err error))
 	tc := time.NewTicker(1)
 	defer tc.Stop()
 
-	for pl.rootCtx.Err() == nil && ctx.Err() == nil {
+	for ctx.Err() == nil {
 		select {
-		case <-pl.rootCtx.Done():
-			return time.Since(start), ErrAborted
+		case <-ctx.Done():
+			return time.Since(start), ctx.Err()
 		case <-tc.C:
 			tc.Reset(pl.interval)
 		}
@@ -69,9 +67,5 @@ func (pl *poller) Poll(ctx context.Context, check func() (done bool, err error))
 		return took, nil
 	}
 
-	err = ctx.Err()
-	if pl.rootCtx.Err() != nil {
-		err = ErrAborted
-	}
-	return time.Since(start), err
+	return time.Since(start), ctx.Err()
 }

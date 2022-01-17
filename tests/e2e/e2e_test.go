@@ -73,15 +73,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	_ = zap.ReplaceGlobals(logger)
 
 	cli, err = client.New(client.Config{
-		RootCtx: context.Background(),
-		URI:     clusterInfo.URIs[0],
-
-		NetworkID: 1337, // for network-runner
-
-		AssetID:  ids.Empty, // to auto-fetch by client
-		PChainID: ids.Empty, // to auto-fetch by client
-		XChainID: ids.Empty, // to auto-fetch by client
-
+		URI:            clusterInfo.URIs[0],
 		PollInterval:   time.Second,
 		RequestTimeout: time.Minute,
 	})
@@ -112,16 +104,19 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		subnetTxFee := uint64(feeInfo.CreateSubnetTxFee)
 		expectedBalance := balance - subnetTxFee
 
-		subnet1, _, err := cli.P().CreateSubnet(k, client.WithDryMode(true))
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		subnet1, _, err := cli.P().CreateSubnet(ctx, k, client.WithDryMode(true))
+		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
 
-		subnet2, _, err := cli.P().CreateSubnet(k, client.WithDryMode(false))
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		subnet2, _, err := cli.P().CreateSubnet(ctx, k, client.WithDryMode(false))
+		cancel()
 		gomega.Ω(err).Should(gomega.BeNil())
 
 		ginkgo.By("returns an identical subnet ID with dry mode", func() {
 			gomega.Ω(subnet1).Should(gomega.Equal(subnet2))
 		})
-
 		subnetID = subnet1
 
 		ginkgo.By("returns a tx-fee deducted balance", func() {
@@ -145,7 +140,9 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		gomega.Ω(err).Should(gomega.BeNil())
 
 		ginkgo.By("fails when subnet ID is empty", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
+				ctx,
 				k,
 				ids.Empty,
 				nodeID,
@@ -153,11 +150,14 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				time.Now(),
 				1000,
 			)
+			cancel()
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 
 		ginkgo.By("fails when node ID is empty", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
+				ctx,
 				k,
 				subnetID,
 				ids.ShortEmpty,
@@ -165,11 +165,14 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				time.Now(),
 				1000,
 			)
+			cancel()
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 
 		ginkgo.By("fails when validate start/end times are invalid", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
+				ctx,
 				k,
 				subnetID,
 				nodeID,
@@ -177,12 +180,15 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				time.Now().Add(5*time.Second),
 				1000,
 			)
+			cancel()
 			// e.g., "failed to issue tx: couldn't issue tx: staking period is too short"
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
 		})
 
 		ginkgo.By("successfully adds the subnet as a validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
+				ctx,
 				k,
 				subnetID,
 				nodeID,
@@ -190,6 +196,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				time.Now().Add(2*24*time.Hour),
 				1000,
 			)
+			cancel()
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
@@ -202,24 +209,30 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 
 	ginkgo.It("can issue CreateBlockchain", func() {
 		ginkgo.By("fails when subnet ID is empty", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, _, err := cli.P().CreateBlockchain(
+				ctx,
 				k,
 				ids.Empty,
 				"",
 				ids.Empty,
 				nil,
 			)
+			cancel()
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 
 		ginkgo.By("fails when vm ID is empty", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, _, err := cli.P().CreateBlockchain(
+				ctx,
 				k,
 				subnetID,
 				"",
 				ids.Empty,
 				nil,
 			)
+			cancel()
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 

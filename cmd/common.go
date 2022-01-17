@@ -1,11 +1,16 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/dustin/go-humanize"
+	"github.com/olekukonko/tablewriter"
+	"github.com/onsi/ginkgo/v2/formatter"
 	"go.uber.org/zap"
 
 	"github.com/ava-labs/subnet-cli/internal/client"
@@ -27,6 +32,8 @@ type Info struct {
 
 	subnetIDType string
 	subnetID     ids.ID
+
+	nodeID ids.ShortID
 
 	blockchainID  ids.ID
 	vmName        string
@@ -90,4 +97,32 @@ func (i *Info) CheckBalance() error {
 		return fmt.Errorf("insuffient fee on %s (expected=%d, have=%d)", i.key.P(), i.txFee, i.balance)
 	}
 	return nil
+}
+
+func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
+	// P-Chain balance is denominated by units.Avax or 10^9 nano-Avax
+	curPChainDenominatedP := float64(i.balance) / float64(units.Avax)
+	curPChainDenominatedBalanceP := humanize.FormatFloat("#,###.#######", curPChainDenominatedP)
+
+	txFee := float64(i.txFee) / float64(units.Avax)
+	txFees := humanize.FormatFloat("#,###.###", txFee)
+
+	buf := bytes.NewBuffer(nil)
+	tb := tablewriter.NewWriter(buf)
+
+	tb.SetAutoWrapText(false)
+	tb.SetColWidth(1500)
+	tb.SetCenterSeparator("*")
+
+	tb.SetRowLine(true)
+	tb.SetAlignment(tablewriter.ALIGN_LEFT)
+
+	tb.Append([]string{formatter.F("{{cyan}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
+	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
+	if i.txFee != 0 {
+		tb.Append([]string{formatter.F("{{red}}{{bold}}TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", txFees)})
+	}
+	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", uri)})
+	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.networkName)})
+	return buf, tb
 }

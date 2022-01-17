@@ -111,6 +111,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	info.blockchainID = blockchainID
 	color.Outf("{{magenta}}created blockchain{{/}} %q {{light-gray}}(took %v){{/}}\n\n", info.blockchainID, took)
 
+	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {
 		return err

@@ -51,7 +51,6 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", logutil.DefaultLogLevel, "log level")
-	rootCmd.PersistentFlags().StringVar(&uri, "uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	rootCmd.PersistentFlags().DurationVar(&pollInterval, "poll-interval", time.Second, "interval to poll tx/blockchain status")
 	rootCmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 2*time.Minute, "request timeout")
 }

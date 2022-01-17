@@ -90,6 +90,7 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	color.Outf("{{magenta}}created subnet{{/}} %q {{light-gray}}(took %v){{/}}\n", info.subnetID, took)
 	color.Outf("({{orange}}subnet must be whitelisted beforehand via{{/}} {{cyan}}{{bold}}--whitelisted-subnets{{/}} {{orange}}flag!{{/}})\n\n")
 
+	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {
 		return err

@@ -7,7 +7,7 @@ A command-line interface to manage [Avalanche Subnets](https://docs.avax.network
 ```bash
 git clone https://github.com/ava-labs/subnet-cli.git;
 cd subnet-cli;
-go install -v .
+go install -v .;
 ```
 
 Once you have installed `subnet-cli`, check the help page to confirm it is
@@ -34,7 +34,12 @@ The following commands will walk you through creating a subnet on Fuji.
 subnet-cli create key
 ```
 
-`subnet-cli` will assume you have funds on this key (or `--private-key-path`) on the P-Chain.
+`subnet-cli` will assume you have funds on this key (or `--private-key-path`) on the P-Chain for the
+rest of this walkthrough. The easiest way to do this (**for testing only**) is
+to import your `.subnet-cli.pk` into the [web wallet](https://wallet.avax.network), request funds from
+the [faucet](https://faucet.avax-test.network), and then move those funds (sent
+on either the X or C-Chain) to the P-Chain. You can view a tutorial for
+how to perform cross-chain transactions [here](https://docs.avax.network/build/tutorials/platform/transfer-avax-between-x-chain-and-p-chain/).
 
 ### `subnet-cli create subnet`
 

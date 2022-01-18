@@ -3,6 +3,112 @@
 
 A command-line interface to manage Avalanche subnet.
 
+Once you have the network endpoints (either from local test scripts or from existing cluster/network), run the following commands to install `subnet-cli` or visit [`subnet-cli/releases`](https://github.com/ava-labs/subnet-cli/releases):
+
+```bash
+cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
+go install -v .
+```
+
+Once you have installed `subnet-cli`, check the man page:
+
+```bash
+subnet-cli -h
+
+Usage:
+  subnet-cli [command]
+
+Available Commands:
+  add         Sub-commands for creating resources
+  ...
+```
+
+### `subnet-cli create key`
+
+```bash
+subnet-cli create key
+```
+
+`subnet-cli` will assume you have funds on this key (or `--private-key-path`) on the P-Chain.
+
+### `subnet-cli create subnet`
+
+```bash
+subnet-cli create subnet
+```
+
+To create a subnet in the local network:
+
+```bash
+subnet-cli create subnet \
+--private-key-path=.insecure.ewoq.key \
+--public-uri=http://localhost:55749
+```
+
+![create-subnet-local-1](./img/create-subnet-local-1.png)
+![create-subnet-local-2](./img/create-subnet-local-2.png)
+
+### `subnet-cli add validator`
+
+```bash
+subnet-cli add validator \
+--node-id="[YOUR-NODE-ID]" \
+--subnet-id="[YOUR-SUBNET-ID]"
+```
+
+To add a validator with the local network:
+
+```bash
+subnet-cli add validator \
+--private-key-path=.insecure.ewoq.key \
+--public-uri=http://localhost:55749 \
+--node-id="NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
+```
+
+![add-validator-local-1](./img/add-validator-local-1.png)
+![add-validator-local-2](./img/add-validator-local-2.png)
+
+### `subnet-cli create blockchain`
+
+```bash
+subnet-cli create blockchain \
+--subnet-id="[YOUR-SUBNET-ID]" \
+--vm-name="[YOUR-VM-NAME]" \
+--vm-id="[YOUR-VM-ID]" \
+--vm-genesis-path="[YOUR-VM-GENESIS-PATH]"
+```
+
+To create a blockchain with the local cluster:
+
+```bash
+subnet-cli create blockchain \
+--private-key-path=.insecure.ewoq.key \
+--public-uri=http://localhost:55749 \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--vm-name=testvm \
+--vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
+--vm-genesis-path=/tmp/testvm.genesis
+```
+
+![create-blockchain-local-1](./img/create-blockchain-local-1.png)
+![create-blockchain-local-2](./img/create-blockchain-local-2.png)
+
+### `subnet-cli status blockchain`
+
+To check the status of the blockchain `2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqYPEiBPjKtn` from the private URI:
+
+```bash
+subnet-cli status blockchain \
+--private-uri=http://localhost:55749 \
+--blockchain-id="2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqYPEiBPjKtn" \
+--check-bootstrapped
+```
+
+See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`](tests/e2e/e2e_test.go) for example tests.
+
+## Running with local network
+
 ```bash
 # [OPTIONAL]
 # build avalanchego for local testing
@@ -25,110 +131,7 @@ cat /tmp/subnet-cli.runner.yml
 ```
 
 ```yaml
-avaxAssetId: BUuypiq2wyuLMvyhzFXcPyxPMCgSp7eeDohhQRqTChoBjKziC
-cChainId: BR28ypgLATNS6PbtHMiJ7NQ61vfpT27Hj8tAcZ1AHsfU5cz88
-logsDir: /var/folders/3j/n0vlnrvs6054fcjwtqzkrfkm0000gq/T/runnerlogs3797544684
-networkId: 1337
-pChainId: 11111111111111111111111111111111LpoYY
-pid: 40388
 uris:
 - http://localhost:57574
-- http://localhost:57576
-- http://localhost:57578
-- http://localhost:57580
-- http://localhost:57582
-xChainId: qzfF3A11KzpcHkkqznEyQgupQrCNS6WV6fTUTwZpEKqhj1QE7
+...
 ```
-
-Once you have the network endpoints (either from local test scripts or from existing cluster/network), run the following commands to create subnet:
-
-```bash
-cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
-go install -v .
-```
-
-### `subnet-cli create subnet`
-
-```bash
-# to create subnet only to the local cluster
-subnet-cli create subnet \
---log-level=debug \
---private-key-path=.insecure.ewoq.key \
---uri=http://localhost:52250
-```
-
-![create-subnet-1](./img/create-subnet-1.png)
-![create-subnet-2](./img/create-subnet-2.png)
-
-```bash
-# to create subnet only to the test network
-subnet-cli create subnet \
---log-level=debug \
---private-key-path=.insecure.ewoq.key \
---uri=https://api.avax-test.network
-```
-
-### `subnet-cli add validator`
-
-```bash
-subnet-cli add validator \
---private-key-path=.insecure.ewoq.key \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---validate-weight=1000 \
---uri=http://localhost:52250
-```
-
-![add-validator-1](./img/add-validator-1.png)
-![add-validator-2](./img/add-validator-2.png)
-
-```bash
-# for test network
-subnet-cli add validator \
---private-key-path=.insecure.ewoq.key \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---validate-weight=1000 \
---uri=https://api.avax-test.network
-```
-
-### `subnet-cli create blockchain`
-
-```bash
-subnet-cli create blockchain \
---private-key-path=.insecure.ewoq.key \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---vm-name=myvm \
---vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
---vm-genesis-path=/tmp/myvm.genesis \
---uri=http://localhost:52250
-```
-
-![create-blockchain-1](./img/create-blockchain-1.png)
-![create-blockchain-2](./img/create-blockchain-2.png)
-
-```bash
-subnet-cli create blockchain \
---private-key-path=.insecure.ewoq.key \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---vm-name=myvm \
---vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
---vm-genesis-path=/tmp/myvm.genesis \
---uri=https://api.avax-test.network
-```
-
-### `subnet-cli status blockchain`
-
-To check the status of the blockchain `8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba`:
-
-```bash
-subnet-cli status blockchain 8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba \
---check-bootstrapped \
---uri=http://localhost:52250
-```
-
-```bash
-subnet-cli status blockchain 8TeQDQVJWtf2agYF2pGR4BHqU27NLzHiAtr8aeaX788iHaAba \
---check-bootstrapped \
---uri=https://api.avax-test.network
-```
-
-See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`](tests/e2e/e2e_test.go) for example tests.

@@ -41,8 +41,7 @@ func createStatusFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	blkChainIDs := args[0]
-	blkChainID, err := ids.FromString(blkChainIDs)
+	blkChainID, err := ids.FromString(blockchainID)
 	if err != nil {
 		return err
 	}

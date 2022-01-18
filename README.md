@@ -1,16 +1,17 @@
+# subnet-cli
 
-## `subnet-cli`
+A command-line interface to manage [Avalanche Subnets](https://docs.avax.network/build/tutorials/platform/subnets).
 
-A command-line interface to manage Avalanche subnet.
-
-Once you have the network endpoints (either from local test scripts or from existing cluster/network), run the following commands to install `subnet-cli` or visit [`subnet-cli/releases`](https://github.com/ava-labs/subnet-cli/releases):
+## Install
 
 ```bash
-cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
+git clone https://github.com/ava-labs/subnet-cli.git;
+cd subnet-cli;
 go install -v .
 ```
 
-Once you have installed `subnet-cli`, check the man page:
+Once you have installed `subnet-cli`, check the help page to confirm it is
+working as expected (_make sure your $GOBIN is in your $PATH_):
 
 ```bash
 subnet-cli -h
@@ -22,6 +23,10 @@ Available Commands:
   add         Sub-commands for creating resources
   ...
 ```
+
+## Usage
+
+The following commands will walk you through creating a subnet on Fuji.
 
 ### `subnet-cli create key`
 

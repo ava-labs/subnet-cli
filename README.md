@@ -35,11 +35,16 @@ subnet-cli create key
 ```
 
 `subnet-cli` will assume you have funds on this key (or `--private-key-path`) on the P-Chain for the
-rest of this walkthrough. The easiest way to do this (**for testing only**) is
-to import your `.subnet-cli.pk` into the [web wallet](https://wallet.avax.network), request funds from
-the [faucet](https://faucet.avax-test.network), and then move those funds (sent
-on either the X or C-Chain) to the P-Chain. You can view a tutorial for
-how to perform cross-chain transactions [here](https://docs.avax.network/build/tutorials/platform/transfer-avax-between-x-chain-and-p-chain/).
+rest of this walkthrough.
+
+The easiest way to do this (**for testing only**) is:
+
+1) Import your private key (`.subnet-cli.pk`) into the [web wallet](https://wallet.avax.network)
+2) Request funds from the [faucet](https://faucet.avax-test.network)
+3) Move the test funds (sent on either the X or C-Chain) to the P-Chain [(Tutorial)](https://docs.avax.network/build/tutorials/platform/transfer-avax-between-x-chain-and-p-chain/)
+
+After following these 3 steps, your test key should now have a balance on the
+P-Chain.
 
 ### `subnet-cli create subnet`
 

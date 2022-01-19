@@ -14,19 +14,41 @@ Once you have installed `subnet-cli`, check the help page to confirm it is
 working as expected (_make sure your $GOBIN is in your $PATH_):
 
 ```bash
-subnet-cli -h
+subnet-cli CLI
 
 Usage:
   subnet-cli [command]
 
 Available Commands:
   add         Sub-commands for creating resources
-  ...
+  completion  Generate the autocompletion script for the specified shell
+  create      Sub-commands for creating resources
+  help        Help about any command
+  status      status commands
+
+Flags:
+      --enable-prompt              'true' to enable prompt mode (default true)
+  -h, --help                       help for subnet-cli
+      --log-level string           log level (default "info")
+      --poll-interval duration     interval to poll tx/blockchain status (default 1s)
+      --request-timeout duration   request timeout (default 2m0s)
+
+Use "subnet-cli [command] --help" for more information about a command.
 ```
 
 ## Usage
 
 The following commands will walk you through creating a subnet on Fuji.
+
+### `subnet-cli create VMID`
+
+This command is used to generate a valid VMID based on some string to uniquely
+identify a VM. This should stay the same for all versions of the VM, so it
+should be based on a word rather than the hash of some code.
+
+```bash
+subnet-cli create VMID <identifier> [--hash]
+```
 
 ### `subnet-cli create key`
 

@@ -36,7 +36,7 @@ var (
 	validateEnds   string
 	validateWeight uint64
 
-	vmName        string
+	chainName     string
 	vmIDs         string
 	vmGenesisPath string
 

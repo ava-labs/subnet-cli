@@ -39,7 +39,7 @@ type Info struct {
 	nodeID ids.ShortID
 
 	blockchainID  ids.ID
-	vmName        string
+	chainName     string
 	vmID          ids.ID
 	vmGenesisPath string
 

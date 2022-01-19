@@ -64,8 +64,8 @@ linters:
     - wastedassign
     - whitespace
     - godot
-    - goerr113
     - nilerr
+    # - goerr113
     # - forbidigo
     # - paralleltest
     # - lll

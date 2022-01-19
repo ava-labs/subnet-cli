@@ -19,6 +19,7 @@ func CreateCommand() *cobra.Command {
 		newCreateKeyCommand(),
 		newCreateSubnetCommand(),
 		newCreateBlockchainCommand(),
+		newCreateVMIDCommand(),
 	)
 	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
@@ -33,8 +34,8 @@ func MakeCreateTable(i *Info) string {
 	if i.blockchainID != ids.Empty {
 		tb.Append([]string{formatter.F("{{blue}}CREATED BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.blockchainID)})
 	}
-	if i.vmName != "" {
-		tb.Append([]string{formatter.F("{{dark-green}}VM NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmName)})
+	if i.chainName != "" {
+		tb.Append([]string{formatter.F("{{dark-green}}CHAIN NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.chainName)})
 		tb.Append([]string{formatter.F("{{dark-green}}VM ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmID)})
 		tb.Append([]string{formatter.F("{{dark-green}}VM GENESIS PATH{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmGenesisPath)})
 	}

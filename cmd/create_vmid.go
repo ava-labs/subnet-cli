@@ -16,9 +16,7 @@ const (
 	IDLen = 32
 )
 
-var (
-	h bool
-)
+var h bool
 
 func newCreateVMIDCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -37,7 +35,7 @@ func createVMIDFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("expected 1 argument but got %d", len(args))
 	}
 
-	identifier := []byte(args[0])
+	identifier := []byte(args[0]) //nolint:ifshort
 	var b []byte
 	if h {
 		b = hashing.ComputeHash256(identifier)

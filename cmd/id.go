@@ -12,6 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	IDLen = 32
+)
+
 var (
 	h bool
 )
@@ -21,7 +25,6 @@ func newCreateVMIDCommand() *cobra.Command {
 		Use:   "VMID [options] <identifier>",
 		Short: "Creates a new encoded VMID from a string",
 		RunE:  createVMIDFunc,
-		// TODO: if less than 32, can use raw
 	}
 
 	cmd.PersistentFlags().BoolVar(&h, "hash", false, "whether or not to hash the identifier argument")
@@ -34,16 +37,16 @@ func createVMIDFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("expected 1 argument but got %d", len(args))
 	}
 
-	identifier := args[0]
+	identifier := []byte(args[0])
 	var b []byte
 	if h {
-		b = hashing.ComputeHash256([]byte(identifier))
+		b = hashing.ComputeHash256(identifier)
 	} else {
-		if len(identifier) > 32 {
+		if len(identifier) > IDLen {
 			return fmt.Errorf("non-hashed name must be <= 32 bytes, found %d", len(identifier))
 		}
-		b = make([]byte, 32)
-		copy(b, []byte(identifier))
+		b = make([]byte, IDLen)
+		copy(b, identifier)
 	}
 
 	id, err := ids.ToID(b)
@@ -51,6 +54,6 @@ func createVMIDFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	color.Outf("{{green}}created a new VMID %q{{/}}\n", id.String())
+	color.Outf("{{green}}created a new VMID %s from %s{{/}}\n", id.String(), args[0])
 	return nil
 }

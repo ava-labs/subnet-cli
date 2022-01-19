@@ -89,7 +89,7 @@ subnet-cli add validator \
 ```bash
 subnet-cli create blockchain \
 --subnet-id="[YOUR-SUBNET-ID]" \
---vm-name="[YOUR-VM-NAME]" \
+--chain-name="[YOUR-CHAIN-NAME]" \
 --vm-id="[YOUR-VM-ID]" \
 --vm-genesis-path="[YOUR-VM-GENESIS-PATH]"
 ```
@@ -101,7 +101,7 @@ subnet-cli create blockchain \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:55749 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---vm-name=testvm \
+--chain-name=test \
 --vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
 --vm-genesis-path=/tmp/testvm.genesis
 ```

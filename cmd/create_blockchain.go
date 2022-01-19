@@ -27,7 +27,7 @@ Creates a blockchain.
 $ subnet-cli create blockchain \
 --private-key-path=.insecure.ewoq.key \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---vm-name=my-custom-vm \
+--chain-name=my-custom-chain \
 --vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
 --vm-genesis-path=.my-custom-vm.genesis
 
@@ -36,7 +36,7 @@ $ subnet-cli create blockchain \
 	}
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().StringVar(&vmName, "vm-name", "", "VM name")
+	cmd.PersistentFlags().StringVar(&chainName, "chain-name", "", "chain name")
 	cmd.PersistentFlags().StringVar(&vmIDs, "vm-id", "", "VM ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringVar(&vmGenesisPath, "vm-genesis-path", "", "VM genesis file path")
 
@@ -65,7 +65,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
-	info.vmName = vmName
+	info.chainName = chainName
 	info.vmGenesisPath = vmGenesisPath
 
 	msg := MakeCreateTable(info)
@@ -99,7 +99,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 		ctx,
 		info.key,
 		info.subnetID,
-		info.vmName,
+		info.chainName,
 		info.vmID,
 		vmGenesisBytes,
 		client.WithPoll(false),

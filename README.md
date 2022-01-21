@@ -89,7 +89,7 @@ subnet-cli create subnet \
 
 ```bash
 subnet-cli add validator \
---node-id="[YOUR-NODE-ID]" \
+--node-ids="[COMMA-SEPARATED-NODE-IDS]" \
 --subnet-id="[YOUR-SUBNET-ID]"
 ```
 
@@ -99,7 +99,7 @@ To add a validator with the local network:
 subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:55749 \
---node-id="NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
+--node-ids="NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
 ```
 
@@ -143,6 +143,18 @@ subnet-cli status blockchain \
 ```
 
 See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`](tests/e2e/e2e_test.go) for example tests.
+
+### `subnet-cli spell`
+
+A single command to create a subnet and add nodes as validators:
+
+```bash
+subnet-cli spell \
+--node-ids="[COMMA-SEPARATED-NODE-IDS]" \
+--chain-name="[YOUR-CHAIN-NAME]" \
+--vm-id="[YOUR-VM-ID]" \
+--vm-genesis-path="[YOUR-VM-GENESIS-PATH]"
+```
 
 ## Running with local network
 

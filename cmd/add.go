@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -27,7 +28,11 @@ func AddCommand() *cobra.Command {
 
 func CreateAddTable(i *Info) string {
 	buf, tb := BaseTableSetup(i)
-	tb.Append([]string{formatter.F("{{orange}}NODE ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.nodeID)})
+	nodes := make([]string, 0, len(i.nodeIDs))
+	for _, id := range i.nodeIDs {
+		nodes = append(nodes, id.String())
+	}
+	tb.Append([]string{formatter.F("{{orange}}NODE IDS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", strings.Join(nodes, "\n"))})
 	tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateStart.Format(time.RFC3339))})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateEnd.Format(time.RFC3339))})

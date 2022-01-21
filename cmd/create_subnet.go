@@ -38,6 +38,10 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	return createSubnet(cli, info)
+}
+
+func createSubnet(cli client.Client, info *Info) error {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	sid, _, err := cli.P().CreateSubnet(ctx, info.key, client.WithDryMode(true))
 	cancel()

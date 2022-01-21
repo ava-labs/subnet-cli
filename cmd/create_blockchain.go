@@ -48,11 +48,16 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	info.subnetIDType = "SUBNET ID"
+
 	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
 	}
+	return createBlockchain(cli, info)
+}
+
+func createBlockchain(cli client.Client, info *Info) (err error) {
+	info.subnetIDType = "SUBNET ID"
 	info.vmID, err = ids.FromString(vmIDs)
 	if err != nil {
 		return err

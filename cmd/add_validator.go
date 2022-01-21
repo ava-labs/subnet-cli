@@ -11,6 +11,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -36,13 +37,14 @@ $ subnet-cli add validator \
 	}
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
+	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(2 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")
+
 	return cmd
 }
 
@@ -51,15 +53,24 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	info.txFee = uint64(info.feeData.TxFee)
-	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-	if err != nil {
-		return err
-	}
 	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
 	}
+	return addValidator(cli, info)
+}
+
+func addValidator(cli client.Client, info *Info) (err error) {
+	info.txFee = uint64(info.feeData.TxFee)
+	info.nodeIDs = make([]ids.ShortID, 0)
+	for _, id := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(id, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		info.nodeIDs = append(info.nodeIDs, nodeID)
+	}
+
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
 		return err
@@ -99,19 +110,23 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	took, err := cli.P().AddSubnetValidator(
-		ctx,
-		info.key,
-		info.subnetID,
-		info.nodeID,
-		info.validateStart,
-		info.validateEnd,
-		validateWeight,
-	)
-	cancel()
-	if err != nil {
-		return err
+	took := time.Duration(0)
+	for _, nodeID := range info.nodeIDs {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		tk, err := cli.P().AddSubnetValidator(
+			ctx,
+			info.key,
+			info.subnetID,
+			nodeID,
+			info.validateStart,
+			info.validateEnd,
+			validateWeight,
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		took += tk
 	}
 	color.Outf("{{magenta}}added subnet to validator{{/}} %q {{light-gray}}(took %v){{/}}\n\n", info.subnetID, took)
 

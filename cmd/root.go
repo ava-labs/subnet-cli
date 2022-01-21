@@ -30,7 +30,7 @@ var (
 	requestTimeout time.Duration
 
 	subnetIDs string
-	nodeIDs   string
+	nodeIDs   []string
 
 	validateStarts string
 	validateEnds   string
@@ -51,6 +51,7 @@ func init() {
 		CreateCommand(),
 		AddCommand(),
 		StatusCommand(),
+		SpellCommand(),
 	)
 
 	rootCmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")

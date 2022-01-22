@@ -7,7 +7,6 @@ package e2e_test
 import (
 	"context"
 	"flag"
-	"syscall"
 	"testing"
 	"time"
 
@@ -17,10 +16,9 @@ import (
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
-	"github.com/ava-labs/subnet-cli/tests"
+	runner_client "github.com/gyuho/avax-tester/client"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"go.uber.org/zap"
 )
 
 func TestE2e(t *testing.T) {
@@ -29,51 +27,79 @@ func TestE2e(t *testing.T) {
 }
 
 var (
-	clusterInfoPath string
-	logLevel        string
-	shutdown        bool
+	logLevel      string
+	gRPCEp        string
+	gRPCGatewayEp string
+	execPath      string
 )
 
 func init() {
-	flag.StringVar(
-		&clusterInfoPath,
-		"cluster-info-path",
-		"",
-		"cluster info YAML file path (as defined in 'tests/cluster_info.go')",
-	)
 	flag.StringVar(
 		&logLevel,
 		"log-level",
 		logutil.DefaultLogLevel,
 		"log level",
 	)
-	flag.BoolVar(
-		&shutdown,
-		"shutdown",
-		false,
-		"'true' to send SIGINT to the local cluster for shutdown",
+	flag.StringVar(
+		&gRPCEp,
+		"grpc-endpoint",
+		"0.0.0.0:8080",
+		"gRPC server endpoint",
+	)
+	flag.StringVar(
+		&gRPCGatewayEp,
+		"grpc-gateway-endpoint",
+		"0.0.0.0:8081",
+		"gRPC gateway endpoint",
+	)
+	flag.StringVar(
+		&execPath,
+		"avalanchego-path",
+		"",
+		"avalanchego executable path",
 	)
 }
 
 var (
-	clusterInfo tests.ClusterInfo
-	cli         client.Client
-	k           key.Key
+	runnerClient runner_client.Client
+	cli          client.Client
+	k            key.Key
 )
 
 var _ = ginkgo.BeforeSuite(func() {
 	var err error
-	clusterInfo, err = tests.LoadClusterInfo(clusterInfoPath)
+	runnerClient, err = runner_client.New(runner_client.Config{
+		LogLevel:    logLevel,
+		Endpoint:    gRPCEp,
+		DialTimeout: 10 * time.Second,
+	})
 	gomega.Ω(err).Should(gomega.BeNil())
 
-	lcfg := logutil.GetDefaultZapLoggerConfig()
-	lcfg.Level = zap.NewAtomicLevelAt(logutil.ConvertToZapLevel(logLevel))
-	logger, err := lcfg.Build()
+	// TODO: pass subnet whitelisting
+	color.Outf("{{green}}starting:{{/}} %q\n", execPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	_, err = runnerClient.Start(ctx, execPath)
+	cancel()
 	gomega.Ω(err).Should(gomega.BeNil())
-	_ = zap.ReplaceGlobals(logger)
 
+	// start is async, so wait some time for cluster health
+	color.Outf("{{green}}waiting for healthy{{/}}\n")
+	time.Sleep(time.Minute)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+	_, err = runnerClient.Health(ctx)
+	cancel()
+	gomega.Ω(err).Should(gomega.BeNil())
+
+	color.Outf("{{green}}getting URIs{{/}}\n")
+	var uris []string
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
+	uris, err = runnerClient.URIs(ctx)
+	cancel()
+	gomega.Ω(err).Should(gomega.BeNil())
+
+	color.Outf("{{green}}creating subnet-cli client{{/}}\n")
 	cli, err = client.New(client.Config{
-		URI:            clusterInfo.URIs[0],
+		URI:            uris[0],
 		PollInterval:   time.Second,
 		RequestTimeout: time.Minute,
 	})
@@ -84,13 +110,15 @@ var _ = ginkgo.BeforeSuite(func() {
 })
 
 var _ = ginkgo.AfterSuite(func() {
-	if !shutdown {
-		color.Outf("{{red}}skipping shutdown for PID %d{{/}}\n", clusterInfo.PID)
-		return
-	}
-	color.Outf("{{red}}shutting down local cluster on PID %d{{/}}\n", clusterInfo.PID)
-	serr := syscall.Kill(clusterInfo.PID, syscall.SIGTERM)
-	color.Outf("{{red}}terminated local cluster on PID %d{{/}} (error %v)\n", clusterInfo.PID, serr)
+	color.Outf("{{red}}shutting down cluster{{/}}\n")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	_, err := runnerClient.Stop(ctx)
+	cancel()
+	gomega.Ω(err).Should(gomega.BeNil())
+
+	color.Outf("{{red}}shutting down client{{/}}\n")
+	err = runnerClient.Close()
+	gomega.Ω(err).Should(gomega.BeNil())
 })
 
 var subnetID = ids.Empty
@@ -236,7 +264,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 
-		ginkgo.Skip("TODO: once we have a testable custom VM in public")
+		ginkgo.Skip("TODO: once we have a testable spaces VM in public")
 
 		balance, err := cli.P().Balance(k)
 		gomega.Ω(err).Should(gomega.BeNil())

@@ -179,12 +179,13 @@ func (pc *p) CreateSubnet(
 }
 
 func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
-	// TODO: official wallet client should define the error value for such case
-	// currently just returns "staking too short"
+	// If no [rsubnetID] is provided, just use the PrimaryNetworkID value.
 	subnetID := constants.PrimaryNetworkID
 	if rsubnetID != ids.Empty {
 		subnetID = rsubnetID
 	}
+
+	// Find validator data associated with [nodeID]
 	vs, err := pc.Client().GetCurrentValidators(subnetID, []ids.ShortID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
@@ -208,21 +209,22 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 		}
 	}
 	if validator == nil {
+		// This should never happen if the length of [vs] > 1, however,
+		// we defend against it in case.
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
 
+	// Parse start/end time once the validator data is found
 	dv, ok := validator["startTime"].(int64)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
 	}
 	start = time.Unix(dv, 0)
-
 	dv, ok = validator["endTime"].(int64)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
 	}
 	end = time.Unix(dv, 0)
-
 	return start, end, nil
 }
 

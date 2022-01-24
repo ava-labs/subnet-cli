@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	api_info "github.com/ava-labs/avalanchego/api/info"
@@ -30,6 +31,9 @@ var (
 	ErrInsufficientBalanceForGasFee      = errors.New("insufficient balance for gas")
 	ErrInsufficientBalanceForStakeAmount = errors.New("insufficient balance for stake amount")
 	ErrUnexpectedSubnetID                = errors.New("unexpected subnet ID")
+
+	ErrNotValidatingPrimaryNetwork = errors.New("validator not validating the primary network")
+	ErrInvalidSubnetValidatePeriod = errors.New("invalid subnet validate period")
 
 	// ref. "vms.platformvm".
 	ErrWrongTxType   = errors.New("wrong transaction type")
@@ -191,6 +195,55 @@ func (pc *p) AddSubnetValidator(
 	}
 	if nodeID == ids.ShortEmpty {
 		return 0, ErrEmptyID
+	}
+
+	// make sure NodeID is a staker on the primary network
+	// TODO: official wallet client should define the error value for such case
+	// currently just returns "staking too short"
+	vs, err := pc.Client().GetCurrentValidators(constants.PrimaryNetworkID, []ids.ShortID{})
+	if err != nil {
+		return 0, err
+	}
+	if len(vs) < 1 {
+		return 0, ErrNotValidatingPrimaryNetwork
+	}
+	var (
+		validator map[string]interface{}
+		found     bool
+	)
+	for _, v := range vs {
+		fmt.Println(v, reflect.TypeOf(v), nodeID.String())
+		va, ok := v.(map[string]interface{})
+		if !ok {
+			return 0, ErrNotValidatingPrimaryNetwork
+		}
+		nodeIDInf := va["nodeID"]
+		nodeIDs, _ := nodeIDInf.(string)
+		fmt.Println("nodeIDs:", nodeIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
+		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
+			validator = va
+			found = true
+			break
+		}
+	}
+	if !found {
+		return 0, ErrNotValidatingPrimaryNetwork
+	}
+
+	// make sure the range is within staker validation start/end on the primary network
+	// TODO: official wallet client should define the error value for such case
+	// currently just returns "staking too short"
+	dur := validator["startTime"]
+	dv, _ := dur.(int64)
+	validateStart := time.Unix(dv, 0)
+	if start.Before(validateStart) {
+		return 0, ErrInvalidSubnetValidatePeriod
+	}
+	dur = validator["endTime"]
+	dv, _ = dur.(int64)
+	validateEnd := time.Unix(dv, 0)
+	if validateEnd.After(end) {
+		return 0, ErrInvalidSubnetValidatePeriod
 	}
 
 	fi, err := pc.info.GetTxFee()

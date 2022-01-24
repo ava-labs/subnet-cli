@@ -191,20 +191,19 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrEmptyID.Error()))
 		})
 
-		ginkgo.By("fails when validate start/end times are invalid", func() {
+		ginkgo.By("fails to add an invalid subnet as a validator, when nodeID isn't validating the primary network", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
 				ctx,
 				k,
 				subnetID,
-				nodeID,
-				time.Now(),
-				time.Now().Add(5*time.Second),
+				ids.GenerateTestShortID(),
+				time.Now().Add(30*time.Second),
+				time.Now().Add(2*24*time.Hour),
 				1000,
 			)
 			cancel()
-			// e.g., "failed to issue tx: couldn't issue tx: staking period is too short"
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
+			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrNotValidatingPrimaryNetwork.Error()))
 		})
 
 		ginkgo.By("successfully adds the subnet as a validator", func() {
@@ -222,24 +221,23 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
-		nodeID = ids.GenerateTestShortID()
-		ginkgo.By("errors when nodeID isn't a validator on primary network", func() {
+		ginkgo.By("fails when validate start/end times are invalid", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
 				ctx,
 				k,
 				subnetID,
 				nodeID,
-				time.Now().Add(30*time.Second),
-				time.Now().Add(2*24*time.Hour),
+				time.Now(),
+				time.Now().Add(5*time.Second),
 				1000,
 			)
 			cancel()
-			// ref. "platformvm.errDSValidatorSubset".
-			// https://github.com/ava-labs/avalanchego/blob/f0a3bbb7d745be99d4970fb3b8fba3c7da87b891/vms/platformvm/add_subnet_validator_tx.go#L21
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period must be a subset of the primary network"))
+			// e.g., "failed to issue tx: couldn't issue tx: staking period is too short"
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
 		})
 
+		nodeID = ids.GenerateTestShortID()
 		ginkgo.By("fails to add another node as a validator when weight is too low", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddValidator(
@@ -272,11 +270,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 
 		balance, err := cli.P().Balance(k)
 		gomega.Ω(err).Should(gomega.BeNil())
-		feeInfo, err := cli.Info().Client().GetTxFee()
-		gomega.Ω(err).Should(gomega.BeNil())
-		txFee := uint64(feeInfo.TxFee)
-		expectedBalance := balance - 2*units.KiloAvax - txFee
-
 		ginkgo.By("successfully adds another node as a validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddValidator(
@@ -293,26 +286,9 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
-		ginkgo.By("successfully adds the node as a subnet validator", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err = cli.P().AddSubnetValidator(
-				ctx,
-				k,
-				subnetID,
-				nodeID,
-
-				// all subnets' staking period
-				// must be a subset of the primary network
-				time.Now().Add(50*time.Second),
-				time.Now().Add(3*24*time.Hour),
-
-				1000,
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("returns a tx-fee deducted balance", func() {
+			expectedBalance := balance - 2*units.KiloAvax
+
 			curBal, err := cli.P().Balance(k)
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))

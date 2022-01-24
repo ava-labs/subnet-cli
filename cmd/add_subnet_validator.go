@@ -56,6 +56,7 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.txFee = uint64(info.feeData.TxFee)
+
 	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
 	if err != nil {
 		return err
@@ -64,6 +65,7 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
 		return err

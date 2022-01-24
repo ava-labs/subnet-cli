@@ -283,7 +283,7 @@ func (pc *p) AddSubnetValidator(
 	if start.Before(validateStart) {
 		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
 	}
-	if validateEnd.After(end) {
+	if end.After(validateEnd) {
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
 

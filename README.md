@@ -79,7 +79,7 @@ To create a subnet in the local network:
 ```bash
 subnet-cli create subnet \
 --private-key-path=.insecure.ewoq.key \
---public-uri=http://localhost:55749
+--public-uri=http://localhost:57786
 ```
 
 ![create-subnet-local-1](./img/create-subnet-local-1.png)
@@ -90,21 +90,46 @@ subnet-cli create subnet \
 ```bash
 subnet-cli add validator \
 --node-id="[YOUR-NODE-ID]" \
---subnet-id="[YOUR-SUBNET-ID]"
+--stake-amount=[STAKE-AMOUNT-IN-NANO-AVAX] \
+--validate-reward-fee-percent=2
 ```
 
-To add a validator with the local network:
+To add a validator to the local network:
 
 ```bash
 subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
---public-uri=http://localhost:55749 \
---node-id="NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg" \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
+--public-uri=http://localhost:57786 \
+--node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--stake-amount=2000000000000 \
+--validate-reward-fee-percent=3
 ```
 
 ![add-validator-local-1](./img/add-validator-local-1.png)
 ![add-validator-local-2](./img/add-validator-local-2.png)
+
+### `subnet-cli add subnet-validator`
+
+```bash
+subnet-cli add subnet-validator \
+--node-id="[YOUR-NODE-ID]" \
+--subnet-id="[YOUR-SUBNET-ID]"
+```
+
+To add a subnet validator to the local network:
+
+```bash
+subnet-cli add subnet-validator \
+--private-key-path=.insecure.ewoq.key \
+--public-uri=http://localhost:57786 \
+--node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
+--validate-start="2022-01-24T20:30:17+08:00" \
+--validate-end="2022-02-15T20:26:17+08:00"
+```
+
+![add-subnet-validator-local-1](./img/add-subnet-validator-local-1.png)
+![add-subnet-validator-local-2](./img/add-subnet-validator-local-2.png)
 
 ### `subnet-cli create blockchain`
 
@@ -121,11 +146,11 @@ To create a blockchain with the local cluster:
 ```bash
 subnet-cli create blockchain \
 --private-key-path=.insecure.ewoq.key \
---public-uri=http://localhost:55749 \
+--public-uri=http://localhost:57786 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---chain-name=test \
+--chain-name=spacesvm \
 --vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
---vm-genesis-path=/tmp/testvm.genesis
+--vm-genesis-path=/tmp/spacesvm.genesis
 ```
 
 ![create-blockchain-local-1](./img/create-blockchain-local-1.png)
@@ -137,8 +162,8 @@ To check the status of the blockchain `2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqY
 
 ```bash
 subnet-cli status blockchain \
---private-uri=http://localhost:55749 \
---blockchain-id="2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqYPEiBPjKtn" \
+--private-uri=http://localhost:57786 \
+--blockchain-id="X5FJH9b8YGLhakW8GY2vdrKSZxLSN4SeB3tc1kJbKqnwoNQ5L" \
 --check-bootstrapped
 ```
 
@@ -146,29 +171,4 @@ See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`]
 
 ## Running with local network
 
-```bash
-# [OPTIONAL]
-# build avalanchego for local testing
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
-rm -rf ./build
-./scripts/build.sh
-
-# [OPTIONAL]
-# build test runner for local cluster setup
-cd ${HOME}/go/src/github.com/ava-labs/subnet-cli/tests/runner
-go build -o /tmp/subnet-cli.runner -v .
-/tmp/subnet-cli.runner \
---avalanchego-path ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego \
---whitelisted-subnets="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---output-path /tmp/subnet-cli.runner.yml
-
-# [OPTIONAL]
-# get cluster endpoints to send requests to
-cat /tmp/subnet-cli.runner.yml
-```
-
-```yaml
-uris:
-- http://localhost:57574
-...
-```
+See [`avax-tester`](https://github.com/gyuho/avax-tester#avax-tester) or [`network-runner`](https://github.com/ava-labs/avalanche-network-runner).

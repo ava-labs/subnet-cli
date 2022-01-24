@@ -40,13 +40,13 @@ func CreateAddTable(i *Info) string {
 	}
 	if i.validateRewardFeePercent > 0 {
 		validateRewardFeePercent := humanize.FormatFloat("#,###.###", float64(i.validateRewardFeePercent))
-		tb.Append([]string{formatter.F("{{magenta}}VALIDATE REWARD FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} %", validateRewardFeePercent)})
+		tb.Append([]string{formatter.F("{{magenta}}VALIDATE REWARD FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} %%", validateRewardFeePercent)})
 	}
 	if i.rewardAddr != ids.ShortEmpty {
-		tb.Append([]string{formatter.F("{{cyan}}REWARD ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}} %", i.rewardAddr)})
+		tb.Append([]string{formatter.F("{{cyan}}{{bold}}REWARD ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}}", i.rewardAddr)})
 	}
 	if i.changeAddr != ids.ShortEmpty {
-		tb.Append([]string{formatter.F("{{cyan}}CHANGE ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}} %", i.changeAddr)})
+		tb.Append([]string{formatter.F("{{cyan}}{{bold}}CHANGE ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}}", i.changeAddr)})
 	}
 	tb.Render()
 	return buf.String()

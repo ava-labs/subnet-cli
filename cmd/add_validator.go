@@ -41,10 +41,9 @@ $ subnet-cli add validator \
 	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 0, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
-	end := start.Add(2 * 24 * time.Hour)
+	end := start.Add(60 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")
 	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", 2, "percentage of fee that the validator will take rewards from its delegators")
 	cmd.PersistentFlags().StringVar(&rewardAddrs, "reward-address", "", "node address to send rewards to (default to key owner)")
 	cmd.PersistentFlags().StringVar(&changeAddrs, "change-address", "", "node address to send changes to (default to key owner)")
@@ -101,7 +100,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 
 	msg := CreateAddTable(info)
 	if enablePrompt {
-		msg = formatter.F("\n{{blue}}{{bold}}Ready to add subnet validator, should we continue?{{/}}\n") + msg
+		msg = formatter.F("\n{{blue}}{{bold}}Ready to add validator, should we continue?{{/}}\n") + msg
 	}
 	fmt.Fprint(formatter.ColorableStdOut, msg)
 
@@ -142,7 +141,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	color.Outf("{{magenta}}added subnet to validator{{/}} %q {{light-gray}}(took %v){{/}}\n\n", info.subnetID, took)
+	color.Outf("{{magenta}}added a node %q to validator{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
 
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
@@ -174,8 +173,8 @@ $ subnet-cli add subnet-validator \
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
 
-	start := time.Now().Add(30 * time.Second)
-	end := start.Add(2 * 24 * time.Hour)
+	start := time.Now().Add(time.Minute)
+	end := start.Add(50 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")

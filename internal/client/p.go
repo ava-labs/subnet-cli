@@ -186,12 +186,19 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	}
 
 	// Find validator data associated with [nodeID]
+	fmt.Println("looking up subnetID", subnetID)
 	vs, err := pc.Client().GetCurrentValidators(subnetID, []ids.ShortID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
+	// If the validator is not found, it will return a string record indicating
+	// that it was "unable to get mainnet validator record".
 	if len(vs) < 1 {
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
+	}
+	if errString, ok := vs[0].(string); ok {
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: %s", ErrValidatorNotFound, errString)
 	}
 	var validator map[string]interface{}
 	for _, v := range vs {
@@ -260,7 +267,7 @@ func (pc *p) AddSubnetValidator(
 	if errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrNotValidatingPrimaryNetwork
 	} else if err != nil {
-		return 0, fmt.Errorf("%w: unable to get mainnet validator record", err)
+		return 0, fmt.Errorf("%w: unable to get primary network validator record", err)
 	}
 	// make sure the range is within staker validation start/end on the primary network
 	// TODO: official wallet client should define the error value for such case

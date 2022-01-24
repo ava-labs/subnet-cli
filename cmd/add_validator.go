@@ -144,7 +144,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	color.Outf("{{magenta}}added a node %q to validator{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
+	color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
 
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)

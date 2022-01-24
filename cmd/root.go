@@ -29,12 +29,17 @@ var (
 	pollInterval   time.Duration
 	requestTimeout time.Duration
 
-	subnetIDs string
-	nodeIDs   string
+	subnetIDs   string
+	nodeIDs     string
+	stakeAmount uint64
 
-	validateStarts string
-	validateEnds   string
-	validateWeight uint64
+	validateStarts           string
+	validateEnds             string
+	validateWeight           uint64
+	validateRewardFeePercent uint32
+
+	rewardAddrs string
+	changeAddrs string
 
 	chainName     string
 	vmIDs         string

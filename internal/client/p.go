@@ -303,6 +303,7 @@ func (pc *p) AddValidator(
 		zap.Time("end", end),
 		zap.Uint64("stakeAmount", ret.stakeAmt),
 		zap.String("rewardAddress", ret.rewardAddr.String()),
+		zap.String("changeAddress", ret.changeAddr.String()),
 	)
 
 	// ref. https://docs.avax.network/learn/platform-overview/transaction-fees/#fee-schedule

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	// "github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -134,10 +134,11 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		txFee := uint64(feeInfo.TxFee)
 		expectedBalance := balance - txFee
 
-		nodeIDs, err := cli.Info().Client().GetNodeID()
-		gomega.Ω(err).Should(gomega.BeNil())
-		nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-		gomega.Ω(err).Should(gomega.BeNil())
+		// nodeIDs, err := cli.Info().Client().GetNodeID()
+		// gomega.Ω(err).Should(gomega.BeNil())
+		// nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
+		// gomega.Ω(err).Should(gomega.BeNil())
+		nodeID := ids.GenerateTestShortID()
 
 		ginkgo.By("fails when subnet ID is empty", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

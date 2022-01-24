@@ -43,6 +43,8 @@ func spellFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Ensure validators are network validators
+
 	if err := createSubnet(cli, info); err != nil {
 		return err
 	}

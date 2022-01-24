@@ -43,8 +43,6 @@ func spellFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Ensure validators are network validators
-
 	if err := createSubnet(cli, info); err != nil {
 		return err
 	}
@@ -53,6 +51,10 @@ func spellFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: if any validator is not yet a validator on the primary network,
+	// automatically add it here
+
 	if err := addValidator(cli, info); err != nil {
 		return err
 	}

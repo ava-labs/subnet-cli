@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	api_info "github.com/ava-labs/avalanchego/api/info"
@@ -190,6 +191,9 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
+	// If the validator is not found, it will return a string record indicating
+	// that it was "unable to get mainnet validator record".
 	if len(vs) < 1 {
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
@@ -197,7 +201,7 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	for _, v := range vs {
 		va, ok := v.(map[string]interface{})
 		if !ok {
-			return time.Time{}, time.Time{}, fmt.Errorf("%w: %+v", ErrInvalidValidatorData, v)
+			return time.Time{}, time.Time{}, fmt.Errorf("%w: %T %+v", ErrInvalidValidatorData, v, v)
 		}
 		nodeIDs, ok := va["nodeID"].(string)
 		if !ok {
@@ -214,15 +218,24 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
 
-	// Parse start/end time once the validator data is found
-	dv, ok := validator["startTime"].(int64)
+	// Parse start/end time once the validator data is found (of format
+	// `json.Uint64`)
+	d, ok := validator["startTime"].(string)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
 	}
+	dv, err := strconv.ParseInt(d, 10, 64)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
 	start = time.Unix(dv, 0)
-	dv, ok = validator["endTime"].(int64)
+	d, ok = validator["endTime"].(string)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
+	}
+	dv, err = strconv.ParseInt(d, 10, 64)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
 	}
 	end = time.Unix(dv, 0)
 	return start, end, nil
@@ -260,7 +273,7 @@ func (pc *p) AddSubnetValidator(
 	if errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrNotValidatingPrimaryNetwork
 	} else if err != nil {
-		return 0, fmt.Errorf("%w: unable to get mainnet validator record", err)
+		return 0, fmt.Errorf("%w: unable to get primary network validator record", err)
 	}
 	// make sure the range is within staker validation start/end on the primary network
 	// TODO: official wallet client should define the error value for such case
@@ -268,7 +281,7 @@ func (pc *p) AddSubnetValidator(
 	if start.Before(validateStart) {
 		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
 	}
-	if validateEnd.After(end) {
+	if end.After(validateEnd) {
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
 

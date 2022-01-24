@@ -521,6 +521,221 @@ func (pc *p) transact(k key.Key, fee uint64) (
 	return ins, outs, signers, nil
 }
 
+func (pc *p) stake(k key.Key, amount uint64, fee uint64) (
+	ins []*avax.TransferableInput,
+	outs []*avax.TransferableOutput,
+	stakedOuts []*avax.TransferableOutput,
+	signers [][]*crypto.PrivateKeySECP256K1R,
+	err error,
+) {
+	ubs, _, err := pc.cli.GetAtomicUTXOs([]string{k.P()}, "", 100, "", "")
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	// Minimum time this transaction will be issued at
+	now := uint64(time.Now().Unix())
+
+	ins = []*avax.TransferableInput{}
+	outs = []*avax.TransferableOutput{}
+	stakedOuts = []*avax.TransferableOutput{}
+	signers = [][]*crypto.PrivateKeySECP256K1R{}
+
+	// Amount of AVAX that has been staked
+	amountStaked := uint64(0)
+
+	// Consume locked UTXOs
+	for _, ub := range ubs {
+		// If we have consumed more AVAX than we are trying to stake, then we
+		// have no need to consume more locked AVAX
+		if amountStaked >= amount {
+			break
+		}
+
+		utxo, err := internal_avax.ParseUTXO(ub, pCodecManager)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		// assume "AssetID" is set to "AVAX" asset ID
+		if utxo.AssetID() != pc.assetID {
+			continue
+		}
+
+		out := utxo.Out
+		inner, ok := out.(*platformvm.StakeableLockOut)
+		if ok {
+			if inner.Locktime > now {
+				// output currently locked, can't be burned
+				// skip for next UTXO
+				continue
+			}
+			utxo.Out = inner.TransferableOut
+		}
+
+		_, inputs, inputSigners := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
+		if len(inputs) == 0 {
+			// cannot spend this UTXO, skip to try next one
+			continue
+		}
+		in := inputs[0]
+
+		// The remaining value is initially the full value of the input
+		remainingValue := in.In.Amount()
+
+		// Stake any value that should be staked
+		amountToStake := math.Min64(
+			amount-amountStaked, // Amount we still need to stake
+			remainingValue,      // Amount available to stake
+		)
+		amountStaked += amountToStake
+		remainingValue -= amountToStake
+
+		// Add the input to the consumed inputs
+		ins = append(ins, in)
+
+		// Add the output to the staked outputs
+		stakedOuts = append(stakedOuts, &avax.TransferableOutput{
+			Asset: avax.Asset{ID: pc.assetID},
+			Out: &platformvm.StakeableLockOut{
+				Locktime: in.Locktime,
+				TransferableOut: &secp256k1fx.TransferOutput{
+					Amt:          amountToStake,
+					OutputOwners: inner.OutputOwners,
+				},
+			},
+		})
+
+		if remainingValue > 0 {
+			// This input provided more value than was needed to be locked.
+			// Some of it must be returned
+			returnedOuts = append(returnedOuts, &avax.TransferableOutput{
+				Asset: avax.Asset{ID: vm.ctx.AVAXAssetID},
+				Out: &StakeableLockOut{
+					Locktime: out.Locktime,
+					TransferableOut: &secp256k1fx.TransferOutput{
+						Amt:          remainingValue,
+						OutputOwners: inner.OutputOwners,
+					},
+				},
+			})
+		}
+
+		// Add the signers needed for this input to the set of signers
+		signers = append(signers, inSigners)
+	}
+
+	// Amount of AVAX that has been burned
+	amountBurned := uint64(0)
+
+	for _, utxo := range utxos {
+		// If we have consumed more AVAX than we are trying to stake, and we
+		// have burned more AVAX then we need to, then we have no need to
+		// consume more AVAX
+		if amountBurned >= fee && amountStaked >= amount {
+			break
+		}
+
+		if assetID := utxo.AssetID(); assetID != vm.ctx.AVAXAssetID {
+			continue // We only care about burning AVAX, so ignore other assets
+		}
+
+		out := utxo.Out
+		inner, ok := out.(*StakeableLockOut)
+		if ok {
+			if inner.Locktime > now {
+				// This output is currently locked, so this output can't be
+				// burned. Additionally, it may have already been consumed
+				// above. Regardless, we skip to the next UTXO
+				continue
+			}
+			out = inner.TransferableOut
+		}
+
+		inIntf, inSigners, err := kc.Spend(out, now)
+		if err != nil {
+			// We couldn't spend this UTXO, so we skip to the next one
+			continue
+		}
+		in, ok := inIntf.(avax.TransferableIn)
+		if !ok {
+			// Because we only use the secp Fx right now, this should never
+			// happen
+			continue
+		}
+
+		// The remaining value is initially the full value of the input
+		remainingValue := in.Amount()
+
+		// Burn any value that should be burned
+		amountToBurn := math.Min64(
+			fee-amountBurned, // Amount we still need to burn
+			remainingValue,   // Amount available to burn
+		)
+		amountBurned += amountToBurn
+		remainingValue -= amountToBurn
+
+		// Stake any value that should be staked
+		amountToStake := math.Min64(
+			amount-amountStaked, // Amount we still need to stake
+			remainingValue,      // Amount available to stake
+		)
+		amountStaked += amountToStake
+		remainingValue -= amountToStake
+
+		// Add the input to the consumed inputs
+		ins = append(ins, &avax.TransferableInput{
+			UTXOID: utxo.UTXOID,
+			Asset:  avax.Asset{ID: vm.ctx.AVAXAssetID},
+			In:     in,
+		})
+
+		if amountToStake > 0 {
+			// Some of this input was put for staking
+			stakedOuts = append(stakedOuts, &avax.TransferableOutput{
+				Asset: avax.Asset{ID: vm.ctx.AVAXAssetID},
+				Out: &secp256k1fx.TransferOutput{
+					Amt: amountToStake,
+					OutputOwners: secp256k1fx.OutputOwners{
+						Locktime:  0,
+						Threshold: 1,
+						Addrs:     []ids.ShortID{changeAddr},
+					},
+				},
+			})
+		}
+
+		if remainingValue > 0 {
+			// This input had extra value, so some of it must be returned
+			returnedOuts = append(returnedOuts, &avax.TransferableOutput{
+				Asset: avax.Asset{ID: vm.ctx.AVAXAssetID},
+				Out: &secp256k1fx.TransferOutput{
+					Amt: remainingValue,
+					OutputOwners: secp256k1fx.OutputOwners{
+						Locktime:  0,
+						Threshold: 1,
+						Addrs:     []ids.ShortID{changeAddr},
+					},
+				},
+			})
+		}
+
+		// Add the signers needed for this input to the set of signers
+		signers = append(signers, inSigners)
+	}
+
+	if amountBurned < fee || amountStaked < amount {
+		return nil, nil, nil, nil, fmt.Errorf(
+			"provided keys have balance (unlocked, locked) (%d, %d) but need (%d, %d)",
+			amountBurned, amountStaked, fee, amount)
+	}
+
+	avax.SortTransferableInputsWithSigners(ins, signers) // sort inputs and keys
+	avax.SortTransferableOutputs(returnedOuts, Codec)    // sort outputs
+	avax.SortTransferableOutputs(stakedOuts, Codec)      // sort outputs
+
+	return ins, returnedOuts, stakedOuts, signers, nil
+}
+
 // ref. "platformvm.VM.authorize".
 func (pc *p) authorize(k key.Key, subnetID ids.ID) (
 	auth verify.Verifiable, // input that names owners

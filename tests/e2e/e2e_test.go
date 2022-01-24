@@ -299,7 +299,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				client.WithRewardShares(30000), // 3%
 			)
 			cancel()
-			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrAlreadyValidator.Error()))
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("about to become a primary network validator"))
 		})
 
 		ginkgo.By("returns a tx-fee deducted balance", func() {

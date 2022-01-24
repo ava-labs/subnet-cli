@@ -214,8 +214,37 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		gomega.Ω(err).Should(gomega.BeNil())
 		txFee := uint64(feeInfo.TxFee)
 		expectedBalance := balance - txFee
-
 		nodeID := ids.GenerateTestShortID()
+		ginkgo.By("errors when nodeID isn't a validator on primary network", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err = cli.P().AddSubnetValidator(
+				ctx,
+				k,
+				subnetID,
+				nodeID,
+				time.Now().Add(30*time.Second),
+				time.Now().Add(2*24*time.Hour),
+				1000,
+			)
+			cancel()
+			// https://github.com/ava-labs/avalanchego/blob/f0a3bbb7d745be99d4970fb3b8fba3c7da87b891/vms/platformvm/add_subnet_validator_tx.go#L21
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period must be a subset of the primary network"))
+		})
+
+		ginkgo.By("successfully adds the node as a validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err = cli.P().AddSubnetValidator(
+				ctx,
+				k,
+				subnetID,
+				nodeID,
+				time.Now().Add(30*time.Second),
+				time.Now().Add(2*24*time.Hour),
+				1000,
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
 
 		ginkgo.By("successfully adds the subnet as a validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

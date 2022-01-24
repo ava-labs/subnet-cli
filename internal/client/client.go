@@ -129,9 +129,10 @@ func New(cfg Config) (Client, error) {
 	cli.p = &p{
 		cfg: cfg,
 
-		networkID: cli.networkID,
-		assetID:   cli.assetID,
-		pChainID:  cli.pChainID,
+		networkName: cli.networkName,
+		networkID:   cli.networkID,
+		assetID:     cli.assetID,
+		pChainID:    cli.pChainID,
 
 		cli:  pc,
 		info: cli.i.Client(),

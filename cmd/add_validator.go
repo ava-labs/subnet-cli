@@ -5,12 +5,15 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -20,43 +23,46 @@ import (
 func newAddValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validator",
-		Short: "Adds a subnet to the validator",
+		Short: "Adds a node as a validator",
 		Long: `
-Adds a subnet to the validator.
+Adds a node as a validator.
 
 $ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:52250 \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
 --node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
---validate-weight=1000
+--stake-amount=2000000000000 \
+--validate-reward-fee-percent=2
 
 `,
 		RunE: createValidatorFunc,
 	}
 
-	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
+	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
-	end := start.Add(2 * 24 * time.Hour)
+	end := start.Add(60 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")
+	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", 2, "percentage of fee that the validator will take rewards from its delegators")
+	cmd.PersistentFlags().StringVar(&rewardAddrs, "reward-address", "", "node address to send rewards to (default to key owner)")
+	cmd.PersistentFlags().StringVar(&changeAddrs, "change-address", "", "node address to send changes to (default to key owner)")
+
 	return cmd
 }
+
+var errInvalidValidateRewardFeePercent = errors.New("invalid validate reward fee percent")
 
 func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}
-	info.txFee = uint64(info.feeData.TxFee)
+	info.stakeAmount = stakeAmount
+
+	info.subnetID = ids.Empty
 	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-	if err != nil {
-		return err
-	}
-	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
 	}
@@ -68,13 +74,36 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	info.validateWeight = validateWeight
+
+	info.validateWeight = 0
+	info.validateRewardFeePercent = validateRewardFeePercent
+	if info.validateRewardFeePercent < 2 {
+		return errInvalidValidateRewardFeePercent
+	}
+
+	if rewardAddrs != "" {
+		info.rewardAddr, err = ids.ShortFromPrefixedString(rewardAddrs, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+	} else {
+		info.rewardAddr = info.key.Key().PublicKey().Address()
+	}
+	if changeAddrs != "" {
+		info.changeAddr, err = ids.ShortFromPrefixedString(changeAddrs, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+	} else {
+		info.changeAddr = info.key.Key().PublicKey().Address()
+	}
+
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
 	msg := CreateAddTable(info)
 	if enablePrompt {
-		msg = formatter.F("\n{{blue}}{{bold}}Ready to add subnet validator, should we continue?{{/}}\n") + msg
+		msg = formatter.F("\n{{blue}}{{bold}}Ready to add validator, should we continue?{{/}}\n") + msg
 	}
 	fmt.Fprint(formatter.ColorableStdOut, msg)
 
@@ -100,20 +129,22 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	took, err := cli.P().AddSubnetValidator(
+	took, err := cli.P().AddValidator(
 		ctx,
 		info.key,
-		info.subnetID,
 		info.nodeID,
 		info.validateStart,
 		info.validateEnd,
-		validateWeight,
+		client.WithStakeAmount(info.stakeAmount),
+		client.WithRewardShares(info.validateRewardFeePercent*10000),
+		client.WithRewardAddress(info.rewardAddr),
+		client.WithChangeAddress(info.changeAddr),
 	)
 	cancel()
 	if err != nil {
 		return err
 	}
-	color.Outf("{{magenta}}added subnet to validator{{/}} %q {{light-gray}}(took %v){{/}}\n\n", info.subnetID, took)
+	color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
 
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)

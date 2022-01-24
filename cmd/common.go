@@ -25,9 +25,10 @@ import (
 type Info struct {
 	uri string
 
-	balance uint64
-	feeData *info.GetTxFeeResponse
-	txFee   uint64
+	balance     uint64
+	feeData     *info.GetTxFeeResponse
+	txFee       uint64
+	stakeAmount uint64
 
 	key key.Key
 
@@ -43,9 +44,13 @@ type Info struct {
 	vmID          ids.ID
 	vmGenesisPath string
 
-	validateStart  time.Time
-	validateEnd    time.Time
-	validateWeight uint64
+	validateStart            time.Time
+	validateEnd              time.Time
+	validateWeight           uint64
+	validateRewardFeePercent uint32
+
+	rewardAddr ids.ShortID
+	changeAddr ids.ShortID
 }
 
 func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
@@ -97,9 +102,9 @@ func CreateLogger() error {
 }
 
 func (i *Info) CheckBalance() error {
-	if i.balance < i.txFee {
+	if i.balance < i.txFee+i.stakeAmount {
 		color.Outf("{{red}}insufficient funds to perform operation. get more at https://faucet.avax-test.network{{/}}\n")
-		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee, i.balance)
+		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee+i.stakeAmount, i.balance)
 	}
 	return nil
 }
@@ -108,9 +113,6 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	// P-Chain balance is denominated by units.Avax or 10^9 nano-Avax
 	curPChainDenominatedP := float64(i.balance) / float64(units.Avax)
 	curPChainDenominatedBalanceP := humanize.FormatFloat("#,###.#######", curPChainDenominatedP)
-
-	txFee := float64(i.txFee) / float64(units.Avax)
-	txFees := humanize.FormatFloat("#,###.###", txFee)
 
 	buf := bytes.NewBuffer(nil)
 	tb := tablewriter.NewWriter(buf)
@@ -122,10 +124,17 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	tb.SetRowLine(true)
 	tb.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	tb.Append([]string{formatter.F("{{cyan}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
+	tb.Append([]string{formatter.F("{{cyan}}{{bold}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
 	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
-	if i.txFee != 0 {
+	if i.txFee > 0 {
+		txFee := float64(i.txFee) / float64(units.Avax)
+		txFees := humanize.FormatFloat("#,###.###", txFee)
 		tb.Append([]string{formatter.F("{{red}}{{bold}}TX FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", txFees)})
+	}
+	if i.stakeAmount > 0 {
+		stakeAmount := float64(i.stakeAmount) / float64(units.Avax)
+		stakeAmounts := humanize.FormatFloat("#,###.###", stakeAmount)
+		tb.Append([]string{formatter.F("{{red}}{{bold}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", stakeAmounts)})
 	}
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.networkName)})

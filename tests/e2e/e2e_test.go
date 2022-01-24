@@ -286,6 +286,22 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err).Should(gomega.BeNil())
 		})
 
+		ginkgo.By("fails to add duplicate validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err = cli.P().AddValidator(
+				ctx,
+				k,
+				nodeID,
+				time.Now().Add(30*time.Second),
+				time.Now().Add(5*24*time.Hour),
+				client.WithStakeAmount(2*units.KiloAvax),
+				// ref. "genesis/genesis_local.go".
+				client.WithRewardShares(30000), // 3%
+			)
+			cancel()
+			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrAlreadyValidator.Error()))
+		})
+
 		ginkgo.By("returns a tx-fee deducted balance", func() {
 			expectedBalance := balance - 2*units.KiloAvax
 

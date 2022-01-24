@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 
 	api_info "github.com/ava-labs/avalanchego/api/info"
@@ -32,6 +31,8 @@ var (
 	ErrInsufficientBalanceForStakeAmount = errors.New("insufficient balance for stake amount")
 	ErrUnexpectedSubnetID                = errors.New("unexpected subnet ID")
 
+	ErrEmptyValidator              = errors.New("empty validator set")
+	ErrAlreadyValidator            = errors.New("already validator")
 	ErrNotValidatingPrimaryNetwork = errors.New("validator not validating the primary network")
 	ErrInvalidSubnetValidatePeriod = errors.New("invalid subnet validate period")
 
@@ -205,21 +206,19 @@ func (pc *p) AddSubnetValidator(
 		return 0, err
 	}
 	if len(vs) < 1 {
-		return 0, ErrNotValidatingPrimaryNetwork
+		return 0, ErrEmptyValidator
 	}
 	var (
 		validator map[string]interface{}
 		found     bool
 	)
 	for _, v := range vs {
-		fmt.Println(v, reflect.TypeOf(v), nodeID.String())
 		va, ok := v.(map[string]interface{})
 		if !ok {
 			return 0, ErrNotValidatingPrimaryNetwork
 		}
 		nodeIDInf := va["nodeID"]
 		nodeIDs, _ := nodeIDInf.(string)
-		fmt.Println("nodeIDs:", nodeIDs, nodeID.PrefixedString(constants.NodeIDPrefix))
 		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
 			validator = va
 			found = true
@@ -321,6 +320,30 @@ func (pc *p) AddValidator(
 
 	if nodeID == ids.ShortEmpty {
 		return 0, ErrEmptyID
+	}
+
+	vs, err := pc.Client().GetCurrentValidators(constants.PrimaryNetworkID, []ids.ShortID{})
+	if err != nil {
+		return 0, err
+	}
+	if len(vs) < 1 {
+		return 0, ErrEmptyValidator
+	}
+	found := false
+	for _, v := range vs {
+		va, ok := v.(map[string]interface{})
+		if !ok {
+			return 0, ErrAlreadyValidator
+		}
+		nodeIDInf := va["nodeID"]
+		nodeIDs, _ := nodeIDInf.(string)
+		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
+			found = true
+			break
+		}
+	}
+	if found {
+		return 0, ErrAlreadyValidator
 	}
 
 	// ref. https://docs.avax.network/learn/platform-overview/staking/#staking-parameters-on-avalanche

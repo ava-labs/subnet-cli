@@ -201,15 +201,20 @@ func (pc *p) getValidator(nodeID ids.ShortID) (start time.Time, end time.Time, f
 		}
 	}
 	if !found {
+		// TODO: need to return a nil error here otherwise will fail AddValidator
 		return time.Time{}, time.Time{}, found, ErrNotValidatingPrimaryNetwork
 	}
 
-	dur := validator["startTime"]
-	dv, _ := dur.(int64)
+	dv, ok := validator["startTime"].(int64)
+	if !ok {
+		return time.Time{}, time.Time{}, false, ErrNotValidatingPrimaryNetwork
+	}
 	start = time.Unix(dv, 0)
 
-	dur = validator["endTime"]
-	dv, _ = dur.(int64)
+	dv, ok = validator["endTime"].(int64)
+	if !ok {
+		return time.Time{}, time.Time{}, false, ErrNotValidatingPrimaryNetwork
+	}
 	end = time.Unix(dv, 0)
 
 	return start, end, found, nil

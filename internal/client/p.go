@@ -236,13 +236,13 @@ func (pc *p) AddSubnetValidator(
 	dv, _ := dur.(int64)
 	validateStart := time.Unix(dv, 0)
 	if start.Before(validateStart) {
-		return 0, ErrInvalidSubnetValidatePeriod
+		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
 	}
 	dur = validator["endTime"]
 	dv, _ = dur.(int64)
 	validateEnd := time.Unix(dv, 0)
 	if validateEnd.After(end) {
-		return 0, ErrInvalidSubnetValidatePeriod
+		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
 
 	fi, err := pc.info.GetTxFee()

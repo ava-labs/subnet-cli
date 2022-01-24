@@ -197,9 +197,6 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	if len(vs) < 1 {
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
-	if errString, ok := vs[0].(string); ok {
-		return time.Time{}, time.Time{}, fmt.Errorf("%w: %s", ErrValidatorNotFound, errString)
-	}
 	fmt.Println("vs", vs)
 	var validator map[string]interface{}
 	for _, v := range vs {
@@ -225,12 +222,12 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	// Parse start/end time once the validator data is found
 	dv, ok := validator["startTime"].(int64)
 	if !ok {
-		return time.Time{}, time.Time{}, ErrInvalidValidatorData
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: expected int64 but got %T", ErrInvalidValidatorData, validator["startTime"])
 	}
 	start = time.Unix(dv, 0)
 	dv, ok = validator["endTime"].(int64)
 	if !ok {
-		return time.Time{}, time.Time{}, ErrInvalidValidatorData
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: expected int64 but got %T", ErrInvalidValidatorData, validator["endTime"])
 	}
 	end = time.Unix(dv, 0)
 	return start, end, nil

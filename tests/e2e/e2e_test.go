@@ -156,13 +156,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 	})
 
 	ginkgo.It("can add subnet/validators", func() {
-		balance, err := cli.P().Balance(k)
-		gomega.Ω(err).Should(gomega.BeNil())
-		feeInfo, err := cli.Info().Client().GetTxFee()
-		gomega.Ω(err).Should(gomega.BeNil())
-		txFee := uint64(feeInfo.TxFee)
-		expectedBalance := balance - txFee
-
 		nodeIDs, err := cli.Info().Client().GetNodeID()
 		gomega.Ω(err).Should(gomega.BeNil())
 		nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
@@ -277,12 +270,12 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staker charges an insufficient delegation fee"))
 		})
 
-		balance, err = cli.P().Balance(k)
+		balance, err := cli.P().Balance(k)
 		gomega.Ω(err).Should(gomega.BeNil())
-		feeInfo, err = cli.Info().Client().GetTxFee()
+		feeInfo, err := cli.Info().Client().GetTxFee()
 		gomega.Ω(err).Should(gomega.BeNil())
-		txFee = uint64(feeInfo.TxFee)
-		expectedBalance = balance - 2*units.KiloAvax - txFee
+		txFee := uint64(feeInfo.TxFee)
+		expectedBalance := balance - 2*units.KiloAvax - txFee
 
 		ginkgo.By("successfully adds another node as a validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

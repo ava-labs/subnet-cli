@@ -102,9 +102,9 @@ func CreateLogger() error {
 }
 
 func (i *Info) CheckBalance() error {
-	if i.balance < i.txFee {
+	if i.balance < i.txFee+i.stakeAmount {
 		color.Outf("{{red}}insufficient funds to perform operation. get more at https://faucet.avax-test.network{{/}}\n")
-		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee, i.balance)
+		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee+i.stakeAmount, i.balance)
 	}
 	return nil
 }

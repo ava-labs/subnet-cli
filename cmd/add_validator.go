@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
@@ -38,7 +39,7 @@ $ subnet-cli add validator \
 	}
 
 	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
+	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(60 * 24 * time.Hour)
@@ -58,7 +59,6 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	info.txFee = uint64(info.feeData.TxFee)
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
@@ -98,6 +98,9 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 		info.changeAddr = info.key.Key().PublicKey().Address()
 	}
 
+	if err := info.CheckBalance(); err != nil {
+		return err
+	}
 	msg := CreateAddTable(info)
 	if enablePrompt {
 		msg = formatter.F("\n{{blue}}{{bold}}Ready to add validator, should we continue?{{/}}\n") + msg

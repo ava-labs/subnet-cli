@@ -35,6 +35,7 @@ var (
 	ErrAlreadyValidator            = errors.New("already validator")
 	ErrNotValidatingPrimaryNetwork = errors.New("validator not validating the primary network")
 	ErrInvalidSubnetValidatePeriod = errors.New("invalid subnet validate period")
+	ErrInvalidValidatorData        = errors.New("invalid validator data")
 
 	// ref. "vms.platformvm".
 	ErrWrongTxType   = errors.New("wrong transaction type")
@@ -190,7 +191,7 @@ func (pc *p) getValidator(nodeID ids.ShortID) (start time.Time, end time.Time, f
 	for _, v := range vs {
 		va, ok := v.(map[string]interface{})
 		if !ok {
-			return time.Time{}, time.Time{}, found, ErrNotValidatingPrimaryNetwork
+			return time.Time{}, time.Time{}, found, ErrInvalidValidatorData
 		}
 		nodeIDInf := va["nodeID"]
 		nodeIDs, _ := nodeIDInf.(string)
@@ -201,23 +202,22 @@ func (pc *p) getValidator(nodeID ids.ShortID) (start time.Time, end time.Time, f
 		}
 	}
 	if !found {
-		// TODO: need to return a nil error here otherwise will fail AddValidator
-		return time.Time{}, time.Time{}, found, ErrNotValidatingPrimaryNetwork
+		return time.Time{}, time.Time{}, false, nil
 	}
 
 	dv, ok := validator["startTime"].(int64)
 	if !ok {
-		return time.Time{}, time.Time{}, false, ErrNotValidatingPrimaryNetwork
+		return time.Time{}, time.Time{}, false, ErrInvalidValidatorData
 	}
 	start = time.Unix(dv, 0)
 
 	dv, ok = validator["endTime"].(int64)
 	if !ok {
-		return time.Time{}, time.Time{}, false, ErrNotValidatingPrimaryNetwork
+		return time.Time{}, time.Time{}, false, ErrInvalidValidatorData
 	}
 	end = time.Unix(dv, 0)
 
-	return start, end, found, nil
+	return start, end, true, nil
 }
 
 // ref. "platformvm.VM.newAddSubnetValidatorTx".
@@ -243,9 +243,12 @@ func (pc *p) AddSubnetValidator(
 		return 0, ErrEmptyID
 	}
 
-	validateStart, validateEnd, _, err := pc.getValidator(nodeID)
+	validateStart, validateEnd, found, err := pc.getValidator(nodeID)
 	if err != nil {
 		return 0, err
+	}
+	if !found {
+		return 0, ErrNotValidatingPrimaryNetwork
 	}
 	// make sure the range is within staker validation start/end on the primary network
 	// TODO: official wallet client should define the error value for such case

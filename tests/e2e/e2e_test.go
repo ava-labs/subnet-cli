@@ -231,6 +231,8 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period must be a subset of the primary network"))
 		})
 
+		// TODO: add validator
+
 		ginkgo.By("successfully adds the node as a validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(

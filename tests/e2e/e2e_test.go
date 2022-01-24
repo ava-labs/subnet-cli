@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	// "github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -134,11 +134,10 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		txFee := uint64(feeInfo.TxFee)
 		expectedBalance := balance - txFee
 
-		// nodeIDs, err := cli.Info().Client().GetNodeID()
-		// gomega.Ω(err).Should(gomega.BeNil())
-		// nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-		// gomega.Ω(err).Should(gomega.BeNil())
-		nodeID := ids.GenerateTestShortID()
+		nodeIDs, err := cli.Info().Client().GetNodeID()
+		gomega.Ω(err).Should(gomega.BeNil())
+		nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
+		gomega.Ω(err).Should(gomega.BeNil())
 
 		ginkgo.By("fails when subnet ID is empty", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -185,6 +184,38 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			// e.g., "failed to issue tx: couldn't issue tx: staking period is too short"
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
 		})
+
+		ginkgo.By("successfully adds the subnet as a validator", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err = cli.P().AddSubnetValidator(
+				ctx,
+				k,
+				subnetID,
+				nodeID,
+				time.Now().Add(30*time.Second),
+				time.Now().Add(2*24*time.Hour),
+				1000,
+			)
+			cancel()
+			gomega.Ω(err).Should(gomega.BeNil())
+		})
+
+		ginkgo.By("returns a tx-fee deducted balance", func() {
+			curBal, err := cli.P().Balance(k)
+			gomega.Ω(err).Should(gomega.BeNil())
+			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))
+		})
+	})
+
+	ginkgo.It("can issue AddSubnetValidatorTx (new validator)", func() {
+		balance, err := cli.P().Balance(k)
+		gomega.Ω(err).Should(gomega.BeNil())
+		feeInfo, err := cli.Info().Client().GetTxFee()
+		gomega.Ω(err).Should(gomega.BeNil())
+		txFee := uint64(feeInfo.TxFee)
+		expectedBalance := balance - txFee
+
+		nodeID := ids.GenerateTestShortID()
 
 		ginkgo.By("successfully adds the subnet as a validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -206,21 +206,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrNotValidatingPrimaryNetwork.Error()))
 		})
 
-		ginkgo.By("successfully adds the subnet as a validator", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err = cli.P().AddSubnetValidator(
-				ctx,
-				k,
-				subnetID,
-				nodeID,
-				time.Now().Add(30*time.Second),
-				time.Now().Add(2*24*time.Hour),
-				1000,
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("fails when validate start/end times are invalid", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddSubnetValidator(
@@ -237,55 +222,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
 		})
 
-		nodeID = ids.GenerateTestShortID()
-		ginkgo.By("fails to add another node as a validator when weight is too low", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err = cli.P().AddValidator(
-				ctx,
-				k,
-				nodeID,
-				time.Now().Add(30*time.Second),
-				time.Now().Add(2*24*time.Hour),
-				client.WithStakeAmount(10),
-			)
-			cancel()
-			// ref. "platformvm.errWeightTooSmall".
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("weight of this validator is too low"))
-		})
-
-		ginkgo.By("fails to add another node as a validator when delegation fee is insufficient", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err = cli.P().AddValidator(
-				ctx,
-				k,
-				nodeID,
-				time.Now().Add(30*time.Second),
-				time.Now().Add(2*24*time.Hour),
-				client.WithStakeAmount(2*units.KiloAvax),
-			)
-			cancel()
-			// ref. "platformvm.errInsufficientDelegationFee".
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staker charges an insufficient delegation fee"))
-		})
-
-		balance, err := cli.P().Balance(k)
-		gomega.Ω(err).Should(gomega.BeNil())
-		ginkgo.By("successfully adds another node as a validator", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err = cli.P().AddValidator(
-				ctx,
-				k,
-				nodeID,
-				time.Now().Add(30*time.Second),
-				time.Now().Add(5*24*time.Hour),
-				client.WithStakeAmount(2*units.KiloAvax),
-				// ref. "genesis/genesis_local.go".
-				client.WithRewardShares(30000), // 3%
-			)
-			cancel()
-			gomega.Ω(err).Should(gomega.BeNil())
-		})
-
 		ginkgo.By("fails to add duplicate validator", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err = cli.P().AddValidator(
@@ -299,15 +235,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				client.WithRewardShares(30000), // 3%
 			)
 			cancel()
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("about to become a primary network validator"))
-		})
-
-		ginkgo.By("returns a tx-fee deducted balance", func() {
-			expectedBalance := balance - 2*units.KiloAvax
-
-			curBal, err := cli.P().Balance(k)
-			gomega.Ω(err).Should(gomega.BeNil())
-			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))
+			gomega.Ω(err.Error()).Should(gomega.Equal(client.ErrAlreadyValidator.Error()))
 		})
 	})
 

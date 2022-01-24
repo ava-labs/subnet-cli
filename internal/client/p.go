@@ -175,6 +175,46 @@ func (pc *p) CreateSubnet(
 	return txID, took, err
 }
 
+func (pc *p) getValidator(nodeID ids.ShortID) (start time.Time, end time.Time, found bool, err error) {
+	// make sure NodeID is a staker on the primary network
+	// TODO: official wallet client should define the error value for such case
+	// currently just returns "staking too short"
+	vs, err := pc.Client().GetCurrentValidators(constants.PrimaryNetworkID, []ids.ShortID{})
+	if err != nil {
+		return time.Time{}, time.Time{}, found, err
+	}
+	if len(vs) < 1 {
+		return time.Time{}, time.Time{}, found, ErrEmptyValidator
+	}
+	var validator map[string]interface{}
+	for _, v := range vs {
+		va, ok := v.(map[string]interface{})
+		if !ok {
+			return time.Time{}, time.Time{}, found, ErrNotValidatingPrimaryNetwork
+		}
+		nodeIDInf := va["nodeID"]
+		nodeIDs, _ := nodeIDInf.(string)
+		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
+			validator = va
+			found = true
+			break
+		}
+	}
+	if !found {
+		return time.Time{}, time.Time{}, found, ErrNotValidatingPrimaryNetwork
+	}
+
+	dur := validator["startTime"]
+	dv, _ := dur.(int64)
+	start = time.Unix(dv, 0)
+
+	dur = validator["endTime"]
+	dv, _ = dur.(int64)
+	end = time.Unix(dv, 0)
+
+	return start, end, found, nil
+}
+
 // ref. "platformvm.VM.newAddSubnetValidatorTx".
 func (pc *p) AddSubnetValidator(
 	ctx context.Context,
@@ -198,49 +238,16 @@ func (pc *p) AddSubnetValidator(
 		return 0, ErrEmptyID
 	}
 
-	// make sure NodeID is a staker on the primary network
-	// TODO: official wallet client should define the error value for such case
-	// currently just returns "staking too short"
-	vs, err := pc.Client().GetCurrentValidators(constants.PrimaryNetworkID, []ids.ShortID{})
+	validateStart, validateEnd, _, err := pc.getValidator(nodeID)
 	if err != nil {
 		return 0, err
 	}
-	if len(vs) < 1 {
-		return 0, ErrEmptyValidator
-	}
-	var (
-		validator map[string]interface{}
-		found     bool
-	)
-	for _, v := range vs {
-		va, ok := v.(map[string]interface{})
-		if !ok {
-			return 0, ErrNotValidatingPrimaryNetwork
-		}
-		nodeIDInf := va["nodeID"]
-		nodeIDs, _ := nodeIDInf.(string)
-		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
-			validator = va
-			found = true
-			break
-		}
-	}
-	if !found {
-		return 0, ErrNotValidatingPrimaryNetwork
-	}
-
 	// make sure the range is within staker validation start/end on the primary network
 	// TODO: official wallet client should define the error value for such case
 	// currently just returns "staking too short"
-	dur := validator["startTime"]
-	dv, _ := dur.(int64)
-	validateStart := time.Unix(dv, 0)
 	if start.Before(validateStart) {
 		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
 	}
-	dur = validator["endTime"]
-	dv, _ = dur.(int64)
-	validateEnd := time.Unix(dv, 0)
 	if validateEnd.After(end) {
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
@@ -322,25 +329,9 @@ func (pc *p) AddValidator(
 		return 0, ErrEmptyID
 	}
 
-	vs, err := pc.Client().GetCurrentValidators(constants.PrimaryNetworkID, []ids.ShortID{})
+	_, _, found, err := pc.getValidator(nodeID)
 	if err != nil {
 		return 0, err
-	}
-	if len(vs) < 1 {
-		return 0, ErrEmptyValidator
-	}
-	found := false
-	for _, v := range vs {
-		va, ok := v.(map[string]interface{})
-		if !ok {
-			return 0, ErrAlreadyValidator
-		}
-		nodeIDInf := va["nodeID"]
-		nodeIDs, _ := nodeIDInf.(string)
-		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
-			found = true
-			break
-		}
 	}
 	if found {
 		return 0, ErrAlreadyValidator

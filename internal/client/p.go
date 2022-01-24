@@ -200,11 +200,12 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	if errString, ok := vs[0].(string); ok {
 		return time.Time{}, time.Time{}, fmt.Errorf("%w: %s", ErrValidatorNotFound, errString)
 	}
+	fmt.Println("vs", vs)
 	var validator map[string]interface{}
 	for _, v := range vs {
 		va, ok := v.(map[string]interface{})
 		if !ok {
-			return time.Time{}, time.Time{}, fmt.Errorf("%w: %+v", ErrInvalidValidatorData, v)
+			return time.Time{}, time.Time{}, fmt.Errorf("%w: %T %+v", ErrInvalidValidatorData, v, v)
 		}
 		nodeIDs, ok := va["nodeID"].(string)
 		if !ok {

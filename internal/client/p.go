@@ -187,7 +187,6 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	}
 
 	// Find validator data associated with [nodeID]
-	fmt.Println("looking up subnetID", subnetID)
 	vs, err := pc.Client().GetCurrentValidators(subnetID, []ids.ShortID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
@@ -198,7 +197,6 @@ func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	if len(vs) < 1 {
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
-	fmt.Println("vs", vs)
 	var validator map[string]interface{}
 	for _, v := range vs {
 		va, ok := v.(map[string]interface{})

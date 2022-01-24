@@ -38,6 +38,15 @@ type P interface {
 	Client() platformvm.Client
 	Checker() internal_platformvm.Checker
 	Balance(key key.Key) (uint64, error)
+	AddValidator(
+		ctx context.Context,
+		k key.Key,
+		nodeID ids.ShortID,
+		start time.Time,
+		end time.Time,
+		amount uint64,
+		opts ...OpOption,
+	) (took time.Duration, err error)
 	CreateSubnet(
 		ctx context.Context,
 		key key.Key,
@@ -106,7 +115,7 @@ func (pc *p) CreateSubnet(
 		zap.String("assetId", pc.assetID.String()),
 		zap.Uint64("createSubnetTxFee", createSubnetTxFee),
 	)
-	ins, outs, signers, err := pc.stake(k, createSubnetTxFee)
+	ins, outs, signers, err := pc.transact(k, createSubnetTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -158,6 +167,69 @@ func (pc *p) CreateSubnet(
 	return txID, took, err
 }
 
+// ref. "platformvm.VM.newAddValidatorTx".
+// WIP
+func (pc *p) AddValidator(
+	ctx context.Context,
+	k key.Key,
+	nodeID ids.ShortID,
+	start time.Time,
+	end time.Time,
+	amount uint64,
+	opts ...OpOption,
+) (took time.Duration, err error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	if nodeID == ids.ShortEmpty {
+		return 0, ErrEmptyID
+	}
+
+	zap.L().Info("adding validator",
+		zap.Time("start", start),
+		zap.Time("end", end),
+		zap.Uint64("amount", amount),
+	)
+	// TODO: replace
+	ins, outs, signers, err := pc.transact(k, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	utx := &platformvm.UnsignedAddValidatorTx{
+		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+			NetworkID:    pc.networkID,
+			BlockchainID: pc.pChainID,
+			Ins:          ins,
+			Outs:         outs,
+		}},
+		Validator: platformvm.Validator{
+			NodeID: nodeID,
+			Start:  uint64(start.Unix()),
+			End:    uint64(end.Unix()),
+			Wght:   amount,
+		},
+	}
+	pTx := &platformvm.Tx{
+		UnsignedTx: utx,
+	}
+	if err := pTx.Sign(pCodecManager, signers); err != nil {
+		return 0, err
+	}
+	if err := utx.SyntacticVerify(&snow.Context{
+		NetworkID: pc.networkID,
+		ChainID:   pc.pChainID,
+	}); err != nil {
+		return 0, err
+	}
+	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	if err != nil {
+		return 0, fmt.Errorf("failed to issue tx: %w", err)
+	}
+
+	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
+}
+
 // ref. "platformvm.VM.newAddSubnetValidatorTx".
 func (pc *p) AddSubnetValidator(
 	ctx context.Context,
@@ -194,7 +266,7 @@ func (pc *p) AddSubnetValidator(
 		zap.Time("end", end),
 		zap.Uint64("weight", weight),
 	)
-	ins, outs, signers, err := pc.stake(k, txFee)
+	ins, outs, signers, err := pc.transact(k, txFee)
 	if err != nil {
 		return 0, err
 	}
@@ -275,7 +347,7 @@ func (pc *p) CreateBlockchain(
 		zap.String("vmId", vmID.String()),
 		zap.Uint64("createBlockchainTxFee", createBlkChainTxFee),
 	)
-	ins, outs, signers, err := pc.stake(k, createBlkChainTxFee)
+	ins, outs, signers, err := pc.transact(k, createBlkChainTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -357,7 +429,7 @@ func WithPoll(b bool) OpOption {
 }
 
 // ref. "platformvm.VM.stake".
-func (pc *p) stake(k key.Key, fee uint64) (
+func (pc *p) transact(k key.Key, fee uint64) (
 	ins []*avax.TransferableInput,
 	outs []*avax.TransferableOutput,
 	signers [][]*crypto.PrivateKeySECP256K1R,

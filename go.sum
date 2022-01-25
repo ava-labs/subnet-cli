@@ -440,8 +440,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.2 h1:I/pwhnUln5wbMnTyRbzswA0/JxpK8sZj0aUfI3TV1So=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.2/go.mod h1:lsuH8kb4GlMdSlI4alNIBBSAt5CHJtg3i+0WuN9J5YM=
-github.com/gyuho/avax-tester v0.0.2 h1:/lp7GKq3XUmyVYlzBHTPZS9rwF68AP27lJLDQZGsKZU=
-github.com/gyuho/avax-tester v0.0.2/go.mod h1:Gtqgcxj6YGcvP5B3WRhfVy4ba0NIfVJFPktR2SJpj2Y=
+github.com/gyuho/avax-tester v0.0.4 h1:iE02I1FkHCta64RAe+WW7VTGOINR7iHDBDJ9NEA6Low=
+github.com/gyuho/avax-tester v0.0.4/go.mod h1:Gtqgcxj6YGcvP5B3WRhfVy4ba0NIfVJFPktR2SJpj2Y=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/api v1.11.0/go.mod h1:XjsvQN+RJGWI2TWy1/kqaE16HrR2J/FWgkYjdZQsX9M=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=

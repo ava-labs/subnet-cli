@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/ava-labs/avalanchego v1.7.2
 	github.com/dustin/go-humanize v1.0.0
-	github.com/gyuho/avax-tester v0.0.2
+	github.com/gyuho/avax-tester v0.0.4
 	github.com/manifoldco/promptui v0.9.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo/v2 v2.0.0

@@ -42,7 +42,9 @@ $ subnet-cli add validator \
 	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
-	end := start.Add(60 * 24 * time.Hour)
+	end := start.Add(2 * 24 * time.Hour)
+	// TODO: make default duration a const
+	// TODO: stagger end times by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", 2, "percentage of fee that the validator will take rewards from its delegators")

@@ -39,7 +39,8 @@ $ subnet-cli add subnet-validator \
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 	start := time.Now().Add(time.Minute)
-	end := start.Add(50 * 24 * time.Hour)
+	end := start.Add(2 * 24 * time.Hour)
+	// TODO: stagger end times by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")

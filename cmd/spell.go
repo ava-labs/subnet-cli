@@ -25,6 +25,7 @@ func SpellCommand() *cobra.Command {
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(2 * 24 * time.Hour)
+	// TODO: stagger end times for validators by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")

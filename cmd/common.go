@@ -16,7 +16,7 @@ import (
 	"github.com/onsi/ginkgo/v2/formatter"
 	"go.uber.org/zap"
 
-	"github.com/ava-labs/subnet-cli/internal/client"
+	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/ava-labs/subnet-cli/pkg/logutil"

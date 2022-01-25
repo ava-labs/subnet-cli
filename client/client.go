@@ -2,6 +2,7 @@
 // See the file LICENSE for licensing terms.
 
 // Package client implements client.
+// TODO: TO BE MIGRATED TO UPSTREAM AVALANCHEGO.
 package client
 
 import (

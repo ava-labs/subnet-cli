@@ -13,7 +13,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
-	"github.com/ava-labs/subnet-cli/internal/client"
+	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/ava-labs/subnet-cli/pkg/logutil"

@@ -47,7 +47,7 @@ find /tmp/avalanchego-v${VERSION}
 # download avalanche-network-runner
 # https://github.com/ava-labs/avalanche-network-runner
 # TODO: migrate to upstream avalanche-network-runner
-NETWORK_RUNNER_VERSION=0.0.3
+NETWORK_RUNNER_VERSION=0.0.4
 DOWNLOAD_PATH=/tmp/avalanche-network-runner.tar.gz
 DOWNLOAD_URL=https://github.com/gyuho/avax-tester/releases/download/v${NETWORK_RUNNER_VERSION}/avax-tester_${NETWORK_RUNNER_VERSION}_linux_amd64.tar.gz
 if [[ ${GOOS} == "darwin" ]]; then

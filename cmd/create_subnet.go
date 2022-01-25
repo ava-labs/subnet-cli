@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ava-labs/subnet-cli/internal/client"
+	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"

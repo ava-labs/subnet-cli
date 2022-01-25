@@ -39,25 +39,25 @@ func SpellCommand() *cobra.Command {
 }
 
 func spellFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient(publicURI, true)
-	if err != nil {
-		return err
-	}
+	// cli, info, err := InitClient(publicURI, true)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if err := createSubnet(cli, info); err != nil {
-		return err
-	}
+	// Compute dry run cost/actions for approval
 
-	info.balance, err = cli.P().Balance(info.key)
-	if err != nil {
-		return err
-	}
-	if err := addValidator(cli, info); err != nil {
-		return err
-	}
-	if err := createBlockchain(cli, info); err != nil {
-		return err
-	}
+	// Ensure all nodes are validators on the primary network
+
+	// Create subnet
+
+	// Pause for operator to whitelist subnet on all validators (and to remind
+	// that a binary by the name of [vmIDs] must be in the plugins dir)
+
+	// Add validators to subnet
+
+	// Add blockchain to subnet
+
+	// Print out summary of actions (subnetID, chainID, validator periods)
 
 	return nil
 }

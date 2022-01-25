@@ -37,7 +37,7 @@ type Info struct {
 	subnetIDType string
 	subnetID     ids.ID
 
-	nodeID ids.ShortID
+	nodeIDs []ids.ShortID
 
 	blockchainID  ids.ID
 	chainName     string
@@ -46,11 +46,12 @@ type Info struct {
 
 	validateStart            time.Time
 	validateEnd              time.Time
-	validateWeight           uint64
 	validateRewardFeePercent uint32
 
 	rewardAddr ids.ShortID
 	changeAddr ids.ShortID
+
+	subnetValidateWeight uint64
 }
 
 func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {

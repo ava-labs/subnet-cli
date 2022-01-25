@@ -23,3 +23,6 @@ dist/
 
 # vim
 *.swp
+
+# don't commit binaries
+tests/runner/runner

@@ -29,14 +29,17 @@ var (
 	pollInterval   time.Duration
 	requestTimeout time.Duration
 
-	subnetIDs   string
-	nodeIDs     string
-	stakeAmount uint64
+	subnetIDs string
+	nodeIDs   []string
 
+	stakeAmount              uint64
 	validateStarts           string
 	validateEnds             string
-	validateWeight           uint64
 	validateRewardFeePercent uint32
+
+	subnetValidateStarts string
+	subnetValidateEnds   string
+	subnetValidateWeight uint64
 
 	rewardAddrs string
 	changeAddrs string
@@ -56,6 +59,7 @@ func init() {
 		CreateCommand(),
 		AddCommand(),
 		StatusCommand(),
+		SpellCommand(),
 	)
 
 	rootCmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")

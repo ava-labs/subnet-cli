@@ -5,11 +5,13 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
@@ -139,4 +141,24 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.networkName)})
 	return buf, tb
+}
+
+func ParseNodeIDs(cli client.Client, i *Info) error {
+	i.nodeIDs = []ids.ShortID{}
+	for _, rnodeID := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		_, _, err = cli.P().GetValidator(i.subnetID, nodeID)
+		switch {
+		case errors.Is(err, client.ErrValidatorNotFound):
+			i.nodeIDs = append(i.nodeIDs, nodeID)
+		case err != nil:
+			return err
+		default:
+			color.Outf("\n{{yellow}}%s is already a validator on subnet %s{{/}}\n", rnodeID, subnetIDs)
+		}
+	}
+	return nil
 }

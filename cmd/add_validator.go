@@ -64,24 +64,11 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
-	info.nodeIDs = []ids.ShortID{}
-	for _, rnodeID := range nodeIDs {
-		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
-		if err != nil {
-			return err
-		}
-		_, _, err = cli.P().GetValidator(info.subnetID, nodeID)
-		switch {
-		case errors.Is(err, client.ErrValidatorNotFound):
-			info.nodeIDs = append(info.nodeIDs, nodeID)
-		case err != nil:
-			return err
-		default:
-			color.Outf("\n{{yellow}}%s is already a validator on the primary network, skipping{{/}}\n", rnodeID)
-		}
+	if err := ParseNodeIDs(cli, info); err != nil {
+		return err
 	}
 	if len(info.nodeIDs) == 0 {
-		color.Outf("{{magenta}}nothing to do, exiting{{/}}\n")
+		color.Outf("{{magenta}}no primary network validators to add{{/}}\n")
 		return nil
 	}
 	// TODO: create each validator independently (using create validator

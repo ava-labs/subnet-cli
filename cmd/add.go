@@ -29,7 +29,7 @@ func AddCommand() *cobra.Command {
 
 func CreateAddTable(i *Info) string {
 	buf, tb := BaseTableSetup(i)
-	tb.Append([]string{formatter.F("{{orange}}NODE ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.nodeID)})
+	tb.Append([]string{formatter.F("{{orange}}NODE IDs{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.nodeIDs)})
 	if i.subnetID != ids.Empty {
 		tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
 	}

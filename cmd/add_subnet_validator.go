@@ -29,7 +29,7 @@ $ subnet-cli add subnet-validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:52250 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --validate-weight=1000
 
 `,
@@ -37,8 +37,7 @@ $ subnet-cli add subnet-validator \
 	}
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
-
+	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 	start := time.Now().Add(time.Minute)
 	end := start.Add(50 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
@@ -56,11 +55,16 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.txFee = uint64(info.feeData.TxFee)
-
-	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-	if err != nil {
-		return err
+	info.nodeIDs = make([]ids.ShortID, len(nodeIDs))
+	for i, rnodeID := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		// TODO: skip if already a subnet validator
+		info.nodeIDs[i] = nodeID
 	}
+	info.txFee *= uint64(len(nodeIDs))
 	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
@@ -114,21 +118,23 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	took, err := cli.P().AddSubnetValidator(
-		ctx,
-		info.key,
-		info.subnetID,
-		info.nodeID,
-		info.validateStart,
-		info.validateEnd,
-		validateWeight,
-	)
-	cancel()
-	if err != nil {
-		return err
+	for _, nodeID := range info.nodeIDs {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		took, err := cli.P().AddSubnetValidator(
+			ctx,
+			info.key,
+			info.subnetID,
+			nodeID,
+			info.validateStart,
+			info.validateEnd,
+			validateWeight,
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
-	color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, info.subnetID, took)
 
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)

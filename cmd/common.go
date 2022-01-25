@@ -37,7 +37,7 @@ type Info struct {
 	subnetIDType string
 	subnetID     ids.ID
 
-	nodeID ids.ShortID
+	nodeIDs []ids.ShortID
 
 	blockchainID  ids.ID
 	chainName     string

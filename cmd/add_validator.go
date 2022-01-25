@@ -38,7 +38,7 @@ $ subnet-cli add validator \
 		RunE: createValidatorFunc,
 	}
 
-	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
+	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
@@ -62,10 +62,18 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
-	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-	if err != nil {
-		return err
+	info.nodeIDs = make([]ids.ShortID, len(nodeIDs))
+	for i, rnodeID := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		// TODO: skip if already a validator
+		info.nodeIDs[i] = nodeID
 	}
+	// TODO: create each validator independently (using create validator
+	// subroutine -> how to get total cost)?
+	info.stakeAmount *= uint64(len(nodeIDs)) // total amount required is the number of items we are staking
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
 		return err
@@ -97,7 +105,6 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	} else {
 		info.changeAddr = info.key.Key().PublicKey().Address()
 	}
-
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
@@ -128,24 +135,26 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	took, err := cli.P().AddValidator(
-		ctx,
-		info.key,
-		info.nodeID,
-		info.validateStart,
-		info.validateEnd,
-		client.WithStakeAmount(info.stakeAmount),
-		client.WithRewardShares(info.validateRewardFeePercent*10000),
-		client.WithRewardAddress(info.rewardAddr),
-		client.WithChangeAddress(info.changeAddr),
-	)
-	cancel()
-	if err != nil {
-		return err
-	}
-	color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
+	for _, nodeID := range info.nodeIDs {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		took, err := cli.P().AddValidator(
+			ctx,
+			info.key,
+			nodeID,
+			info.validateStart,
+			info.validateEnd,
+			client.WithStakeAmount(info.stakeAmount),
+			client.WithRewardShares(info.validateRewardFeePercent*10000),
+			client.WithRewardAddress(info.rewardAddr),
+			client.WithChangeAddress(info.changeAddr),
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
 
+	}
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

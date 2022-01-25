@@ -82,6 +82,7 @@ type P interface {
 		vmGenesis []byte,
 		opts ...OpOption,
 	) (blkChainID ids.ID, took time.Duration, err error)
+	GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error)
 }
 
 type p struct {
@@ -179,7 +180,7 @@ func (pc *p) CreateSubnet(
 	return txID, took, err
 }
 
-func (pc *p) getValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
+func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
 	// If no [rsubnetID] is provided, just use the PrimaryNetworkID value.
 	subnetID := constants.PrimaryNetworkID
 	if rsubnetID != ids.Empty {
@@ -264,12 +265,12 @@ func (pc *p) AddSubnetValidator(
 		return 0, ErrEmptyID
 	}
 
-	_, _, err = pc.getValidator(subnetID, nodeID)
+	_, _, err = pc.GetValidator(subnetID, nodeID)
 	if !errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrAlreadySubnetValidator
 	}
 
-	validateStart, validateEnd, err := pc.getValidator(ids.ID{}, nodeID)
+	validateStart, validateEnd, err := pc.GetValidator(ids.ID{}, nodeID)
 	if errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrNotValidatingPrimaryNetwork
 	} else if err != nil {
@@ -362,7 +363,7 @@ func (pc *p) AddValidator(
 		return 0, ErrEmptyID
 	}
 
-	_, _, err = pc.getValidator(ids.ID{}, nodeID)
+	_, _, err = pc.GetValidator(ids.ID{}, nodeID)
 	if err == nil {
 		return 0, ErrAlreadyValidator
 	} else if !errors.Is(err, ErrValidatorNotFound) {

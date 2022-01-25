@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/subnet-cli/internal/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -55,21 +56,32 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	info.txFee = uint64(info.feeData.TxFee)
-	info.nodeIDs = make([]ids.ShortID, len(nodeIDs))
-	for i, rnodeID := range nodeIDs {
-		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
-		if err != nil {
-			return err
-		}
-		// TODO: skip if already a subnet validator
-		info.nodeIDs[i] = nodeID
-	}
-	info.txFee *= uint64(len(nodeIDs))
 	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
 	}
+	info.txFee = uint64(info.feeData.TxFee)
+	info.nodeIDs = []ids.ShortID{}
+	for _, rnodeID := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		_, _, err = cli.P().GetValidator(info.subnetID, nodeID)
+		switch {
+		case errors.Is(err, client.ErrValidatorNotFound):
+			info.nodeIDs = append(info.nodeIDs, nodeID)
+		case err != nil:
+			return err
+		default:
+			color.Outf("\n{{yellow}}%s is already a validator on subnet %s, skipping{{/}}\n", rnodeID, subnetIDs)
+		}
+	}
+	if len(info.nodeIDs) == 0 {
+		color.Outf("{{magenta}}nothing to do, exiting{{/}}\n")
+		return nil
+	}
+	info.txFee *= uint64(len(nodeIDs))
 
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {

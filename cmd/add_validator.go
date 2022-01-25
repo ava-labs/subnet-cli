@@ -64,14 +64,25 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
-	info.nodeIDs = make([]ids.ShortID, len(nodeIDs))
-	for i, rnodeID := range nodeIDs {
+	info.nodeIDs = []ids.ShortID{}
+	for _, rnodeID := range nodeIDs {
 		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
 		if err != nil {
 			return err
 		}
-		// TODO: skip if already a validator
-		info.nodeIDs[i] = nodeID
+		_, _, err = cli.P().GetValidator(info.subnetID, nodeID)
+		switch {
+		case errors.Is(err, client.ErrValidatorNotFound):
+			info.nodeIDs = append(info.nodeIDs, nodeID)
+		case err != nil:
+			return err
+		default:
+			color.Outf("\n{{yellow}}%s is already a validator on the primary network, skipping{{/}}\n", rnodeID)
+		}
+	}
+	if len(info.nodeIDs) == 0 {
+		color.Outf("{{magenta}}nothing to do, exiting{{/}}\n")
+		return nil
 	}
 	// TODO: create each validator independently (using create validator
 	// subroutine -> how to get total cost)?

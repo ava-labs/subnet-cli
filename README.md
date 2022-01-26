@@ -146,9 +146,7 @@ subnet-cli add subnet-validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:57786 \
 --node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---validate-start="2022-01-24T20:30:17+08:00" \
---validate-end="2022-02-15T20:26:17+08:00"
+--subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
 ```
 
 ![add-subnet-validator-local-1](./img/add-subnet-validator-local-1.png)

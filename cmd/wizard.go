@@ -36,7 +36,7 @@ func WizardCommand() *cobra.Command {
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	end := time.Now().Add(30 * 24 * time.Hour)
+	end := time.Now().Add(defaultValDuration)
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 
 	// "create blockchain"
@@ -63,10 +63,6 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.stakeAmount = stakeAmount
-	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
-	if err != nil {
-		return err
-	}
 	info.validateEnd, err = time.Parse(time.RFC3339, validateEnds)
 	if err != nil {
 		return err
@@ -119,14 +115,14 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	println()
 
 	// Ensure all nodes are validators on the primary network
-	for _, nodeID := range info.nodeIDs {
+	for i, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		start := time.Now().Add(30 * time.Second)
+		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
 			ctx,
 			info.key,
 			nodeID,
-			start,
+			info.validateStart,
 			info.validateEnd,
 			client.WithStakeAmount(info.stakeAmount),
 			client.WithRewardShares(info.validateRewardFeePercent*10000),
@@ -138,19 +134,12 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
+		if i < len(info.nodeIDs)-1 {
+			info.validateEnd = info.validateEnd.Add(defaultStagger)
+		}
 	}
 	if len(info.nodeIDs) > 0 {
-		for _, nodeID := range info.nodeIDs {
-			color.Outf("{{yellow}}waiting for validator %s to start validating primary nework...(could take a few minutes){{/}}\n", nodeID)
-			for {
-				start, end, err := cli.P().GetValidator(ids.Empty, nodeID)
-				if err == nil {
-					info.valInfos[nodeID] = &ValInfo{start, end}
-					break
-				}
-				time.Sleep(10 * time.Second)
-			}
-		}
+		WaitValidator(cli, info.nodeIDs, info)
 		println()
 		println()
 	}
@@ -207,12 +196,9 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
 
-	for _, nodeID := range info.allNodeIDs {
-		color.Outf("{{yellow}}waiting for subnet validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, info.subnetID)
-		for err := client.ErrValidatorNotFound; err != nil; _, _, err = cli.P().GetValidator(info.subnetID, nodeID) {
-			time.Sleep(10 * time.Second)
-		}
-	}
+	// Because [info.subnetID] was set to the new subnetID, [WaitValidator] will
+	// lookup status for subnetID
+	WaitValidator(cli, info.allNodeIDs, info)
 	println()
 	println()
 

@@ -155,6 +155,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			info.validateEnd = info.validateEnd.Add(defaultStagger)
 		}
 	}
+	WaitValidator(cli, info.nodeIDs, info)
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0

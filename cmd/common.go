@@ -177,8 +177,24 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		case err != nil:
 			return err
 		default:
-			color.Outf("\n{{yellow}}%s is already a validator on subnet %s{{/}}\n", rnodeID, subnetIDs)
+			color.Outf("\n{{yellow}}%s is already a validator on %s{{/}}\n", rnodeID, subnetIDs)
 		}
 	}
 	return nil
+}
+
+func WaitValidator(cli client.Client, nodeIDs []ids.ShortID, i *Info) {
+	for _, nodeID := range nodeIDs {
+		color.Outf("{{yellow}}waiting for validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, i.subnetID)
+		for {
+			start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+			if err == nil {
+				if i.subnetID == ids.Empty {
+					i.valInfos[nodeID] = &ValInfo{start, end}
+				}
+				break
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}
 }

@@ -139,17 +139,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if len(info.nodeIDs) > 0 {
-		for _, nodeID := range info.nodeIDs {
-			color.Outf("{{yellow}}waiting for validator %s to start validating primary nework...(could take a few minutes){{/}}\n", nodeID)
-			for {
-				start, end, err := cli.P().GetValidator(ids.Empty, nodeID)
-				if err == nil {
-					info.valInfos[nodeID] = &ValInfo{start, end}
-					break
-				}
-				time.Sleep(10 * time.Second)
-			}
-		}
+		WaitValidator(cli, info.nodeIDs, info)
 		println()
 		println()
 	}
@@ -206,12 +196,9 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
 
-	for _, nodeID := range info.allNodeIDs {
-		color.Outf("{{yellow}}waiting for subnet validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, info.subnetID)
-		for err := client.ErrValidatorNotFound; err != nil; _, _, err = cli.P().GetValidator(info.subnetID, nodeID) {
-			time.Sleep(10 * time.Second)
-		}
-	}
+	// Because [info.subnetID] was set to the new subnetID, [WaitValidator] will
+	// lookup status for subnetID
+	WaitValidator(cli, info.allNodeIDs, info)
 	println()
 	println()
 

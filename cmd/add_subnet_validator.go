@@ -128,7 +128,7 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		}
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
-
+	WaitValidator(cli, info.nodeIDs, info)
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0

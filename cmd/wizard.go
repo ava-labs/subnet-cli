@@ -36,7 +36,7 @@ func WizardCommand() *cobra.Command {
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	end := time.Now().Add(30 * 24 * time.Hour)
+	end := time.Now().Add(defaultValDuration)
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 
 	// "create blockchain"
@@ -115,7 +115,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	println()
 
 	// Ensure all nodes are validators on the primary network
-	for _, nodeID := range info.nodeIDs {
+	for i, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
@@ -134,6 +134,9 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
+		if i < len(info.nodeIDs)-1 {
+			info.validateEnd = info.validateEnd.Add(defaultStagger)
+		}
 	}
 	if len(info.nodeIDs) > 0 {
 		for _, nodeID := range info.nodeIDs {

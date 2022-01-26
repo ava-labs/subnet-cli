@@ -132,7 +132,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	for _, nodeID := range info.nodeIDs {
+	for i, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
@@ -151,7 +151,9 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
-		info.validateEnd = info.validateEnd.Add(defaultStagger)
+		if i < len(info.nodeIDs)-1 {
+			info.validateEnd = info.validateEnd.Add(defaultStagger)
+		}
 	}
 	info.requiredBalance = 0
 	info.stakeAmount = 0

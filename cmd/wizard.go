@@ -115,6 +115,8 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	if idx == 1 {
 		return nil
 	}
+	println()
+	println()
 
 	// Ensure all nodes are validators on the primary network
 	for _, nodeID := range info.nodeIDs {
@@ -139,7 +141,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	if len(info.nodeIDs) > 0 {
 		for _, nodeID := range info.nodeIDs {
-			color.Outf("{{yellow}}waiting for validator %s to start validating primary nework...(could take a few minutes){{/}}", nodeID)
+			color.Outf("{{yellow}}waiting for validator %s to start validating primary nework...(could take a few minutes){{/}}\n", nodeID)
 			for {
 				start, end, err := cli.P().GetValidator(ids.Empty, nodeID)
 				if err == nil {
@@ -181,6 +183,8 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	if idx == 1 {
 		return nil
 	}
+	println()
+	println()
 
 	// Add validators to subnet
 	for _, nodeID := range info.allNodeIDs { // do all nodes, not parsed
@@ -204,7 +208,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, nodeID := range info.allNodeIDs {
-		color.Outf("{{yellow}}waiting for subnet validator %s to start validating %s...(could take a few minutes){{/}}", nodeID, info.subnetID)
+		color.Outf("{{yellow}}waiting for subnet validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, info.subnetID)
 		for err := client.ErrValidatorNotFound; err != nil; _, _, err = cli.P().GetValidator(info.subnetID, nodeID) {
 			time.Sleep(10 * time.Second)
 		}
@@ -267,8 +271,11 @@ func CreateSpellPreTable(i *Info) string {
 
 func CreateSpellPostTable(i *Info) string {
 	buf, tb := BaseTableSetup(i)
-	tb.Append([]string{formatter.F("{{orange}}SUBNET VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
+	if len(i.nodeIDs) > 0 {
+		tb.Append([]string{formatter.F("{{magenta}}PRIMARY NETWORK VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.nodeIDs)})
+	}
 
+	tb.Append([]string{formatter.F("{{orange}}SUBNET VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
 	tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
 	tb.Append([]string{formatter.F("{{blue}}BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.blockchainID)})
 

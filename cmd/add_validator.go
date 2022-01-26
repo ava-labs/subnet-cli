@@ -23,6 +23,8 @@ import (
 const (
 	defaultStakeAmount   = 1 * units.Avax
 	defaultValFeePercent = 2
+	defaultStagger       = 2 * time.Hour
+	defaultValDuration   = 300 * 24 * time.Hour
 )
 
 func newAddValidatorCommand() *cobra.Command {
@@ -46,11 +48,7 @@ $ subnet-cli add validator \
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
 	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", defaultStakeAmount, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
-	start := time.Now().Add(30 * time.Second)
-	end := start.Add(2 * 24 * time.Hour)
-	// TODO: make default duration a const
-	// TODO: stagger end times by 2 hours
-	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
+	end := time.Now().Add(300 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", defaultValFeePercent, "percentage of fee that the validator will take rewards from its delegators")
 	cmd.PersistentFlags().StringVar(&rewardAddrs, "reward-address", "", "node address to send rewards to (default to key owner)")
@@ -75,10 +73,6 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	if len(info.nodeIDs) == 0 {
 		color.Outf("{{magenta}}no primary network validators to add{{/}}\n")
 		return nil
-	}
-	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
-	if err != nil {
-		return err
 	}
 	info.validateEnd, err = time.Parse(time.RFC3339, validateEnds)
 	if err != nil {
@@ -140,6 +134,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	for _, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
 			ctx,
 			info.key,
@@ -156,6 +151,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
+		info.validateEnd = info.validateEnd.Add(defaultStagger)
 	}
 	info.requiredBalance = 0
 	info.stakeAmount = 0

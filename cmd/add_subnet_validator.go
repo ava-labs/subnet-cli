@@ -41,11 +41,6 @@ $ subnet-cli add subnet-validator \
 
 	cmd.PersistentFlags().StringVar(&subnetIDs, "subnet-id", "", "subnet ID (must be formatted in ids.ID)")
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	start := time.Now().Add(time.Minute)
-	end := start.Add(2 * 24 * time.Hour)
-	// TODO: stagger end times by 2 hours
-	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", defaultValidateWeight, "validate weight")
 
 	return cmd
@@ -70,15 +65,6 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	if len(info.nodeIDs) == 0 {
 		color.Outf("{{magenta}}no subnet validators to add{{/}}\n")
 		return nil
-	}
-
-	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
-	if err != nil {
-		return err
-	}
-	info.validateEnd, err = time.Parse(time.RFC3339, validateEnds)
-	if err != nil {
-		return err
 	}
 
 	info.validateWeight = validateWeight
@@ -124,6 +110,9 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	for _, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		valInfo := info.valInfos[nodeID]
+		info.validateStart = time.Now().Add(30 * time.Second)
+		info.validateEnd = valInfo.end
 		took, err := cli.P().AddSubnetValidator(
 			ctx,
 			info.key,

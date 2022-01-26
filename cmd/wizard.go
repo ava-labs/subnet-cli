@@ -63,10 +63,6 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.stakeAmount = stakeAmount
-	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
-	if err != nil {
-		return err
-	}
 	info.validateEnd, err = time.Parse(time.RFC3339, validateEnds)
 	if err != nil {
 		return err
@@ -121,12 +117,12 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	// Ensure all nodes are validators on the primary network
 	for _, nodeID := range info.nodeIDs {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		start := time.Now().Add(30 * time.Second)
+		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
 			ctx,
 			info.key,
 			nodeID,
-			start,
+			info.validateStart,
 			info.validateEnd,
 			client.WithStakeAmount(info.stakeAmount),
 			client.WithRewardShares(info.validateRewardFeePercent*10000),

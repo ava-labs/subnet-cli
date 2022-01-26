@@ -33,7 +33,6 @@ var (
 	nodeIDs     []string
 	stakeAmount uint64
 
-	validateStarts           string
 	validateEnds             string
 	validateWeight           uint64
 	validateRewardFeePercent uint32

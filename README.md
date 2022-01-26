@@ -25,6 +25,7 @@ Available Commands:
   create      Sub-commands for creating resources
   help        Help about any command
   status      status commands
+  wizard      A magical command for creating an entire subnet
 
 Flags:
       --enable-prompt              'true' to enable prompt mode (default true)
@@ -68,6 +69,27 @@ The easiest way to do this (**for testing only**) is:
 After following these 3 steps, your test key should now have a balance on the
 P-Chain.
 
+### `subnet-cli wizard`
+`wizard` is a magical command that:
+* Adds all NodeIDs as validators on the primary network
+* Creates a subnet
+* Adds all NodeIDs as validators on the subnet
+* Creates a new blockchain
+
+To create a 4 node subnet:
+
+```bash
+subnet-cli wizard \
+--node-ids=NodeID-741aqvs6R4iuHDyd1qT1NrFTmsgu78dc4,NodeID-K7Y79oAmBntAcdkyY1CLxCim8QuqcZbBp,NodeID-C3EY6u4v7DDi6YEbYf1wmXdvkEFXYuXNW,NodeID-AiLGeqQfh9gZY3Y8wLMD15tuJtsJHq5Qi \
+--vm-genesis-path=fake-genesis.json \
+--vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
+--chain-name=test
+```
+
+![wizard-1](./img/wizard-1.png)
+![wizard-2](./img/wizard-2.png)
+
+
 ### `subnet-cli create subnet`
 
 ```bash
@@ -89,7 +111,7 @@ subnet-cli create subnet \
 
 ```bash
 subnet-cli add validator \
---node-id="[YOUR-NODE-ID]" \
+--node-ids="[YOUR-NODE-ID]" \
 --stake-amount=[STAKE-AMOUNT-IN-NANO-AVAX] \
 --validate-reward-fee-percent=2
 ```
@@ -112,7 +134,7 @@ subnet-cli add validator \
 
 ```bash
 subnet-cli add subnet-validator \
---node-id="[YOUR-NODE-ID]" \
+--node-ids="[YOUR-NODE-ID]" \
 --subnet-id="[YOUR-SUBNET-ID]"
 ```
 
@@ -158,7 +180,7 @@ subnet-cli create blockchain \
 
 ### `subnet-cli status blockchain`
 
-To check the status of the blockchain `2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqYPEiBPjKtn` from the private URI:
+To check the status of the blockchain `2o5THyMs4kVfC42yAiSt2SrjWNkxCLYZef1kewkqYPEiBPjKtn` from a **private URI**:
 
 ```bash
 subnet-cli status blockchain \

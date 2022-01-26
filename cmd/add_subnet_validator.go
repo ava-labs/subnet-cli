@@ -61,7 +61,6 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	if err := ParseNodeIDs(cli, info); err != nil {
 		return err
 	}
-	info.nodeIDs = []ids.ShortID{}
 	if len(info.nodeIDs) == 0 {
 		color.Outf("{{magenta}}no subnet validators to add{{/}}\n")
 		return nil
@@ -109,10 +108,16 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	for _, nodeID := range info.nodeIDs {
-		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		valInfo := info.valInfos[nodeID]
+		// valInfo is not populated because [ParseNodeIDs] called on info.subnetID
+		//
+		// TODO: cleanup
+		_, end, err := cli.P().GetValidator(ids.Empty, nodeID)
+		if err != nil {
+			return err
+		}
 		info.validateStart = time.Now().Add(30 * time.Second)
-		info.validateEnd = valInfo.end
+		info.validateEnd = end
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		took, err := cli.P().AddSubnetValidator(
 			ctx,
 			info.key,

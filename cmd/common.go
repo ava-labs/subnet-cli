@@ -160,6 +160,8 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 }
 
 func ParseNodeIDs(cli client.Client, i *Info) error {
+	// TODO: make this parsing logic more explicit (+ store per subnetID, not
+	// just whatever was called last)
 	i.nodeIDs = []ids.ShortID{}
 	i.allNodeIDs = make([]ids.ShortID, len(nodeIDs))
 	for idx, rnodeID := range nodeIDs {

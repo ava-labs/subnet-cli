@@ -5,11 +5,13 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
@@ -22,13 +24,20 @@ import (
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
 )
 
+type ValInfo struct {
+	start time.Time
+	end   time.Time
+}
+
 type Info struct {
 	uri string
 
-	balance     uint64
-	feeData     *info.GetTxFeeResponse
-	txFee       uint64
-	stakeAmount uint64
+	feeData *info.GetTxFeeResponse
+	balance uint64
+
+	txFee           uint64
+	stakeAmount     uint64
+	requiredBalance uint64
 
 	key key.Key
 
@@ -37,7 +46,9 @@ type Info struct {
 	subnetIDType string
 	subnetID     ids.ID
 
-	nodeID ids.ShortID
+	nodeIDs    []ids.ShortID
+	allNodeIDs []ids.ShortID
+	valInfos   map[ids.ShortID]*ValInfo
 
 	blockchainID  ids.ID
 	chainName     string
@@ -74,6 +85,7 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		uri:         uri,
 		feeData:     txFee,
 		networkName: networkName,
+		valInfos:    map[ids.ShortID]*ValInfo{},
 	}
 	if !loadKey {
 		return cli, info, nil
@@ -102,9 +114,9 @@ func CreateLogger() error {
 }
 
 func (i *Info) CheckBalance() error {
-	if i.balance < i.txFee+i.stakeAmount {
+	if i.balance < i.requiredBalance {
 		color.Outf("{{red}}insufficient funds to perform operation. get more at https://faucet.avax-test.network{{/}}\n")
-		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.txFee+i.stakeAmount, i.balance)
+		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.requiredBalance, i.balance)
 	}
 	return nil
 }
@@ -136,7 +148,37 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 		stakeAmounts := humanize.FormatFloat("#,###.###", stakeAmount)
 		tb.Append([]string{formatter.F("{{red}}{{bold}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", stakeAmounts)})
 	}
+	if i.requiredBalance > 0 {
+		requiredBalance := float64(i.requiredBalance) / float64(units.Avax)
+		requiredBalances := humanize.FormatFloat("#,###.###", requiredBalance)
+		tb.Append([]string{formatter.F("{{red}}{{bold}}REQUIRED BALANCE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", requiredBalances)})
+	}
+
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.uri)})
 	tb.Append([]string{formatter.F("{{orange}}NETWORK NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.networkName)})
 	return buf, tb
+}
+
+func ParseNodeIDs(cli client.Client, i *Info) error {
+	i.nodeIDs = []ids.ShortID{}
+	i.allNodeIDs = make([]ids.ShortID, len(nodeIDs))
+	for idx, rnodeID := range nodeIDs {
+		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		if err != nil {
+			return err
+		}
+		i.allNodeIDs[idx] = nodeID
+
+		start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+		i.valInfos[nodeID] = &ValInfo{start, end}
+		switch {
+		case errors.Is(err, client.ErrValidatorNotFound):
+			i.nodeIDs = append(i.nodeIDs, nodeID)
+		case err != nil:
+			return err
+		default:
+			color.Outf("\n{{yellow}}%s is already a validator on subnet %s{{/}}\n", rnodeID, subnetIDs)
+		}
+	}
+	return nil
 }

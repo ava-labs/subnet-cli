@@ -20,6 +20,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	defaultStakeAmount   = 1 * units.Avax
+	defaultValFeePercent = 2
+)
+
 func newAddValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validator",
@@ -30,7 +35,7 @@ Adds a node as a validator.
 $ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:52250 \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --stake-amount=2000000000000 \
 --validate-reward-fee-percent=2
 
@@ -38,14 +43,16 @@ $ subnet-cli add validator \
 		RunE: createValidatorFunc,
 	}
 
-	cmd.PersistentFlags().StringVar(&nodeIDs, "node-id", "", "node ID (must be formatted in ids.ID)")
-	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
+	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
+	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", defaultStakeAmount, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
-	end := start.Add(60 * 24 * time.Hour)
+	end := start.Add(2 * 24 * time.Hour)
+	// TODO: make default duration a const
+	// TODO: stagger end times by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", 2, "percentage of fee that the validator will take rewards from its delegators")
+	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", defaultValFeePercent, "percentage of fee that the validator will take rewards from its delegators")
 	cmd.PersistentFlags().StringVar(&rewardAddrs, "reward-address", "", "node address to send rewards to (default to key owner)")
 	cmd.PersistentFlags().StringVar(&changeAddrs, "change-address", "", "node address to send changes to (default to key owner)")
 
@@ -62,9 +69,12 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
-	info.nodeID, err = ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
-	if err != nil {
+	if err := ParseNodeIDs(cli, info); err != nil {
 		return err
+	}
+	if len(info.nodeIDs) == 0 {
+		color.Outf("{{magenta}}no primary network validators to add{{/}}\n")
+		return nil
 	}
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
@@ -97,7 +107,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	} else {
 		info.changeAddr = info.key.Key().PublicKey().Address()
 	}
-
+	info.requiredBalance = info.stakeAmount * uint64(len(info.nodeIDs))
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
@@ -128,24 +138,27 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	took, err := cli.P().AddValidator(
-		ctx,
-		info.key,
-		info.nodeID,
-		info.validateStart,
-		info.validateEnd,
-		client.WithStakeAmount(info.stakeAmount),
-		client.WithRewardShares(info.validateRewardFeePercent*10000),
-		client.WithRewardAddress(info.rewardAddr),
-		client.WithChangeAddress(info.changeAddr),
-	)
-	cancel()
-	if err != nil {
-		return err
+	for _, nodeID := range info.nodeIDs {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		took, err := cli.P().AddValidator(
+			ctx,
+			info.key,
+			nodeID,
+			info.validateStart,
+			info.validateEnd,
+			client.WithStakeAmount(info.stakeAmount),
+			client.WithRewardShares(info.validateRewardFeePercent*10000),
+			client.WithRewardAddress(info.rewardAddr),
+			client.WithChangeAddress(info.changeAddr),
+		)
+		cancel()
+		if err != nil {
+			return err
+		}
+		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
 	}
-	color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", info.nodeID, took)
-
+	info.requiredBalance = 0
+	info.stakeAmount = 0
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

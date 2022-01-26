@@ -18,7 +18,7 @@ import (
 	"github.com/onsi/ginkgo/v2/formatter"
 	"github.com/spf13/cobra"
 
-	"github.com/ava-labs/subnet-cli/internal/client"
+	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 )
 

@@ -35,7 +35,7 @@ Adds a node as a validator.
 $ subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:52250 \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --stake-amount=2000000000000 \
 --validate-reward-fee-percent=2
 

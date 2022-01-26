@@ -177,7 +177,7 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		case err != nil:
 			return err
 		default:
-			color.Outf("\n{{yellow}}%s is already a validator on %s{{/}}\n", rnodeID, subnetIDs)
+			color.Outf("\n{{yellow}}%s is already a validator on %s{{/}}\n", nodeID, i.subnetID)
 		}
 	}
 	return nil

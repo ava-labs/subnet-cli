@@ -92,15 +92,15 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 			Label:  "\n",
 			Stdout: os.Stdout,
 			Items: []string{
-				formatter.F("{{red}}No, stop it!{{/}}"),
 				formatter.F("{{green}}Yes, let's create! {{bold}}{{underline}}I agree to pay the fee{{/}}{{green}}!{{/}}"),
+				formatter.F("{{red}}No, stop it!{{/}}"),
 			},
 		}
 		idx, _, err := prompt.Run()
 		if err != nil {
-			panic(err)
+			return nil //nolint:nilerr
 		}
-		if idx == 0 {
+		if idx == 1 {
 			return nil
 		}
 	}

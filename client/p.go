@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	api_info "github.com/ava-labs/avalanchego/api/info"
@@ -15,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/json"
 	"github.com/ava-labs/avalanchego/utils/math"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -221,24 +221,16 @@ func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 
 	// Parse start/end time once the validator data is found (of format
 	// `json.Uint64`)
-	d, ok := validator["startTime"].(string)
+	d, ok := validator["startTime"].(json.Uint64)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
 	}
-	dv, err := strconv.ParseInt(d, 10, 64)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	start = time.Unix(dv, 0)
-	d, ok = validator["endTime"].(string)
+	start = time.Unix(int64(d), 0)
+	d, ok = validator["endTime"].(json.Uint64)
 	if !ok {
 		return time.Time{}, time.Time{}, ErrInvalidValidatorData
 	}
-	dv, err = strconv.ParseInt(d, 10, 64)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	end = time.Unix(dv, 0)
+	end = time.Unix(int64(d), 0)
 	return start, end, nil
 }
 

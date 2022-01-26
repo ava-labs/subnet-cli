@@ -110,7 +110,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	idx, _, err := prompt.Run()
 	if err != nil {
-		return nil
+		return nil //nolint:nilerr
 	}
 	if idx == 1 {
 		return nil
@@ -178,7 +178,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	idx, _, err = prompt.Run()
 	if err != nil {
-		return nil
+		return nil //nolint:nilerr
 	}
 	if idx == 1 {
 		return nil

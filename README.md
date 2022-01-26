@@ -71,7 +71,8 @@ P-Chain.
 
 ### `subnet-cli wizard`
 `wizard` is a magical command that:
-* Adds all NodeIDs as validators on the primary network
+* Adds all NodeIDs as validators on the primary network (skipping any that
+  already exist)
 * Creates a subnet
 * Adds all NodeIDs as validators on the subnet
 * Creates a new blockchain

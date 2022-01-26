@@ -156,7 +156,6 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
-
 	}
 	info.requiredBalance = 0
 	info.stakeAmount = 0

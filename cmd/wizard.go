@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -35,10 +36,7 @@ func WizardCommand() *cobra.Command {
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	start := time.Now().Add(2 * time.Minute)
-	end := start.Add(30 * 24 * time.Hour)
-	// TODO: stagger end times for validators by 2 hours
-	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
+	end := time.Now().Add(30 * 24 * time.Hour)
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 
 	// "create blockchain"
@@ -102,33 +100,31 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprint(formatter.ColorableStdOut, msg)
 
-	if enablePrompt {
-		prompt := promptui.Select{
-			Label:  "\n",
-			Stdout: os.Stdout,
-			Items: []string{
-				formatter.F("{{red}}No, stop it!{{/}}"),
-				formatter.F("{{green}}Yes, let's create! {{bold}}{{underline}}I agree to pay the fee{{/}}{{green}}!{{/}}"),
-			},
-		}
-		idx, _, err := prompt.Run()
-		if err != nil {
-			panic(err)
-		}
-		if idx == 0 {
-			return nil
-		}
+	prompt := promptui.Select{
+		Label:  "\n",
+		Stdout: os.Stdout,
+		Items: []string{
+			formatter.F("{{green}}Yes, let's create! {{bold}}{{underline}}I agree to pay the fee{{/}}{{green}}!{{/}}"),
+			formatter.F("{{red}}No, stop it!{{/}}"),
+		},
+	}
+	idx, _, err := prompt.Run()
+	if err != nil {
+		return nil
+	}
+	if idx == 1 {
+		return nil
 	}
 
 	// Ensure all nodes are validators on the primary network
 	for _, nodeID := range info.nodeIDs {
-		// add validator
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		start := time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
 			ctx,
 			info.key,
 			nodeID,
-			info.validateStart,
+			start,
 			info.validateEnd,
 			client.WithStakeAmount(info.stakeAmount),
 			client.WithRewardShares(info.validateRewardFeePercent*10000),
@@ -142,8 +138,17 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
 	}
 	if len(info.nodeIDs) > 0 {
-		color.Outf("{{yellow}}waiting for validator start time %s to continue...{{/}}", info.validateStart.Format(time.RFC3339))
-		<-time.After(time.Until(info.validateStart))
+		for _, nodeID := range info.nodeIDs {
+			color.Outf("{{yellow}}waiting for validator %s to start validating primary nework...(could take a few minutes){{/}}", nodeID)
+			for {
+				start, end, err := cli.P().GetValidator(ids.Empty, nodeID)
+				if err == nil {
+					info.valInfos[nodeID] = &ValInfo{start, end}
+					break
+				}
+				time.Sleep(10 * time.Second)
+			}
+		}
 		println()
 		println()
 	}
@@ -161,19 +166,23 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	// Pause for operator to whitelist subnet on all validators (and to remind
 	// that a binary by the name of [vmIDs] must be in the plugins dir)
 	color.Outf("\n\n\n{{cyan}}Now, time for some config changes on your node(s).\nSet --whitelisted-subnets=%s and move the compiled VM %s to <build-dir>/plugins/%s.\nWhen you're finished, restart your node.{{/}}\n", info.subnetID, info.vmID, info.vmID)
-	prompt := promptui.Select{
+	prompt = promptui.Select{
 		Label:  "\n",
 		Stdout: os.Stdout,
 		Items: []string{
 			formatter.F("{{green}}Yes, let's continue!{{bold}}{{underline}} I've updated --whitelisted-subnets, built my VM, and restarted my node(s)!{{/}}"),
+			formatter.F("{{red}}No, stop it!{{/}}"),
 		},
 	}
-	if _, _, err := prompt.Run(); err != nil {
-		panic(err)
+	idx, _, err = prompt.Run()
+	if err != nil {
+		return nil
+	}
+	if idx == 1 {
+		return nil
 	}
 
 	// Add validators to subnet
-	var lastSubStart time.Time
 	for _, nodeID := range info.allNodeIDs { // do all nodes, not parsed
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		valInfo := info.valInfos[nodeID]
@@ -192,11 +201,14 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
-		lastSubStart = start
 	}
 
-	color.Outf("{{yellow}}waiting for last subnet validator start time %s to continue...{{/}}", lastSubStart.Format(time.RFC3339))
-	<-time.After(time.Until(lastSubStart))
+	for _, nodeID := range info.allNodeIDs {
+		color.Outf("{{yellow}}waiting for subnet validator %s to start validating %s...(could take a few minutes){{/}}", nodeID, info.subnetID)
+		for err := client.ErrValidatorNotFound; err != nil; _, _, err = cli.P().GetValidator(info.subnetID, nodeID) {
+			time.Sleep(10 * time.Second)
+		}
+	}
 	println()
 	println()
 
@@ -231,20 +243,20 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 
 func CreateSpellPreTable(i *Info) string {
 	buf, tb := BaseTableSetup(i)
-	tb.Append([]string{formatter.F("{{orange}}NODE IDs{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
-
 	if len(i.nodeIDs) > 0 {
 		tb.Append([]string{formatter.F("{{magenta}}NEW PRIMARY NETWORK VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.nodeIDs)})
-		tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateStart.Format(time.RFC3339))})
 		tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateEnd.Format(time.RFC3339))})
-		tb.Append([]string{formatter.F("{{magenta}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(i.stakeAmount)))})
+		stakeAmount := float64(i.stakeAmount) / float64(units.Avax)
+		stakeAmounts := humanize.FormatFloat("#,###.###", stakeAmount)
+		tb.Append([]string{formatter.F("{{magenta}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}} $AVAX", stakeAmounts)})
 		validateRewardFeePercent := humanize.FormatFloat("#,###.###", float64(i.validateRewardFeePercent))
 		tb.Append([]string{formatter.F("{{magenta}}VALIDATE REWARD FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} %%", validateRewardFeePercent)})
 		tb.Append([]string{formatter.F("{{cyan}}{{bold}}REWARD ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}}", i.rewardAddr)})
 		tb.Append([]string{formatter.F("{{cyan}}{{bold}}CHANGE ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}}", i.changeAddr)})
 	}
 
-	tb.Append([]string{formatter.F("{{magenta}}VALIDATE WEIGHT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(i.validateWeight)))})
+	tb.Append([]string{formatter.F("{{orange}}NEW SUBNET VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
+	tb.Append([]string{formatter.F("{{magenta}}SUBNET VALIDATION WEIGHT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(i.validateWeight)))})
 
 	tb.Append([]string{formatter.F("{{dark-green}}CHAIN NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.chainName)})
 	tb.Append([]string{formatter.F("{{dark-green}}VM ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmID)})
@@ -255,7 +267,7 @@ func CreateSpellPreTable(i *Info) string {
 
 func CreateSpellPostTable(i *Info) string {
 	buf, tb := BaseTableSetup(i)
-	tb.Append([]string{formatter.F("{{orange}}NODE IDs{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
+	tb.Append([]string{formatter.F("{{orange}}SUBNET VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.allNodeIDs)})
 
 	tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
 	tb.Append([]string{formatter.F("{{blue}}BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.blockchainID)})

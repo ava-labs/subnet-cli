@@ -17,6 +17,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	defaultValidateWeight = 1000
+)
+
 func newAddSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "subnet-validator",
@@ -42,7 +46,7 @@ $ subnet-cli add subnet-validator \
 	// TODO: stagger end times by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", 1000, "validate weight")
+	cmd.PersistentFlags().Uint64Var(&validateWeight, "validate-weight", defaultValidateWeight, "validate weight")
 
 	return cmd
 }
@@ -67,7 +71,6 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}no subnet validators to add{{/}}\n")
 		return nil
 	}
-	info.txFee *= uint64(len(nodeIDs))
 
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
@@ -87,6 +90,8 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.rewardAddr = ids.ShortEmpty
 	info.changeAddr = ids.ShortEmpty
 
+	info.txFee *= uint64(len(info.nodeIDs))
+	info.requiredBalance = info.txFee
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
@@ -135,6 +140,8 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
 
+	info.requiredBalance = 0
+	info.stakeAmount = 0
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

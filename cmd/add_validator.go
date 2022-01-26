@@ -20,6 +20,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	defaultStakeAmount   = 1 * units.Avax
+	defaultValFeePercent = 2
+)
+
 func newAddValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validator",
@@ -39,7 +44,7 @@ $ subnet-cli add validator \
 	}
 
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", 1*units.Avax, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
+	cmd.PersistentFlags().Uint64Var(&stakeAmount, "stake-amount", defaultStakeAmount, "stake amount denominated in nano AVAX (minimum amount that a validator must stake is 2,000 AVAX)")
 
 	start := time.Now().Add(30 * time.Second)
 	end := start.Add(2 * 24 * time.Hour)
@@ -47,7 +52,7 @@ $ subnet-cli add validator \
 	// TODO: stagger end times by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
 	cmd.PersistentFlags().StringVar(&validateEnds, "validate-end", end.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
-	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", 2, "percentage of fee that the validator will take rewards from its delegators")
+	cmd.PersistentFlags().Uint32Var(&validateRewardFeePercent, "validate-reward-fee-percent", defaultValFeePercent, "percentage of fee that the validator will take rewards from its delegators")
 	cmd.PersistentFlags().StringVar(&rewardAddrs, "reward-address", "", "node address to send rewards to (default to key owner)")
 	cmd.PersistentFlags().StringVar(&changeAddrs, "change-address", "", "node address to send changes to (default to key owner)")
 
@@ -71,9 +76,6 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}no primary network validators to add{{/}}\n")
 		return nil
 	}
-	// TODO: create each validator independently (using create validator
-	// subroutine -> how to get total cost)?
-	info.stakeAmount *= uint64(len(nodeIDs)) // total amount required is the number of items we are staking
 	info.validateStart, err = time.Parse(time.RFC3339, validateStarts)
 	if err != nil {
 		return err
@@ -105,6 +107,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	} else {
 		info.changeAddr = info.key.Key().PublicKey().Address()
 	}
+	info.requiredBalance = info.stakeAmount * uint64(len(info.nodeIDs))
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
@@ -155,6 +158,8 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
 
 	}
+	info.requiredBalance = 0
+	info.stakeAmount = 0
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

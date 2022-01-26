@@ -62,6 +62,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.txFee = uint64(info.feeData.CreateBlockchainTxFee)
+	info.requiredBalance = info.txFee
 	if err := info.CheckBalance(); err != nil {
 		return err
 	}
@@ -102,7 +103,6 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 		info.chainName,
 		info.vmID,
 		vmGenesisBytes,
-		client.WithPoll(false),
 	)
 	cancel()
 	if err != nil {
@@ -111,6 +111,8 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	info.blockchainID = blockchainID
 	color.Outf("{{magenta}}created blockchain{{/}} %q {{light-gray}}(took %v){{/}}\n\n", info.blockchainID, took)
 
+	info.requiredBalance = 0
+	info.stakeAmount = 0
 	info.txFee = 0
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

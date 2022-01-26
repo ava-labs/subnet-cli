@@ -150,7 +150,8 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	}
 	if i.requiredBalance > 0 {
 		requiredBalance := float64(i.requiredBalance) / float64(units.Avax)
-		tb.Append([]string{formatter.F("{{red}}{{bold}}REQUIRED BALANCE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", requiredBalance)})
+		requiredBalances := humanize.FormatFloat("#,###.###", requiredBalance)
+		tb.Append([]string{formatter.F("{{red}}{{bold}}REQUIRED BALANCE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", requiredBalances)})
 	}
 
 	tb.Append([]string{formatter.F("{{orange}}URI{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.uri)})
@@ -176,7 +177,7 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		case err != nil:
 			return err
 		default:
-			color.Outf("\n{{yellow}}%s is already a validator on subnet %s{{/}}\n", rnodeID, subnetIDs)
+			color.Outf("\n{{yellow}}%s is already a validator on subnet %s{{/}}", rnodeID, subnetIDs)
 		}
 	}
 	return nil

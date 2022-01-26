@@ -35,7 +35,7 @@ func WizardCommand() *cobra.Command {
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
-	start := time.Now().Add(30 * time.Second)
+	start := time.Now().Add(2 * time.Minute)
 	end := start.Add(30 * 24 * time.Hour)
 	// TODO: stagger end times for validators by 2 hours
 	cmd.PersistentFlags().StringVar(&validateStarts, "validate-start", start.Format(time.RFC3339), "validate start timestamp in RFC3339 format")
@@ -141,6 +141,12 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
 	}
+	if len(info.nodeIDs) > 0 {
+		color.Outf("{{yellow}}waiting for validator start time %s to continue...{{/}}", info.validateStart.Format(time.RFC3339))
+		<-time.After(time.Until(info.validateStart))
+		println()
+		println()
+	}
 
 	// Create subnet
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -150,15 +156,16 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.subnetID = subnetID
+	color.Outf("{{magenta}}created subnet{{/}} %q {{light-gray}}(took %v){{/}}\n", info.subnetID, took)
 
 	// Pause for operator to whitelist subnet on all validators (and to remind
 	// that a binary by the name of [vmIDs] must be in the plugins dir)
-	color.Outf("{{cyan}}Now that the subnet is created, add %s to --whitelisted-subnets and %s to <build-dir/plugins. Then, restart your node.{{/}}\n", info.subnetID, info.vmID)
+	color.Outf("\n\n\n{{cyan}}Now, time for some config changes on your node(s).\nSet --whitelisted-subnets=%s and move the compiled VM %s to <build-dir>/plugins/%s.\nWhen you're finished, restart your node.{{/}}\n", info.subnetID, info.vmID, info.vmID)
 	prompt := promptui.Select{
 		Label:  "\n",
 		Stdout: os.Stdout,
 		Items: []string{
-			formatter.F("{{green}}Yes, let's continue!{{bold}}{{underline}}I've updated --whitelisted-subnets, built my VM, and restarted my node!{{/}}"),
+			formatter.F("{{green}}Yes, let's continue!{{bold}}{{underline}} I've updated --whitelisted-subnets, built my VM, and restarted my node(s)!{{/}}"),
 		},
 	}
 	if _, _, err := prompt.Run(); err != nil {
@@ -166,15 +173,17 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add validators to subnet
-	for _, nodeID := range info.nodeIDs { // do all nodes, not parsed
+	var lastSubStart time.Time
+	for _, nodeID := range info.allNodeIDs { // do all nodes, not parsed
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		valInfo := info.valInfos[nodeID]
+		start := time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddSubnetValidator(
 			ctx,
 			info.key,
 			info.subnetID,
 			nodeID,
-			valInfo.start,
+			start,
 			valInfo.end,
 			validateWeight,
 		)
@@ -183,7 +192,13 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
+		lastSubStart = start
 	}
+
+	color.Outf("{{yellow}}waiting for last subnet validator start time %s to continue...{{/}}", lastSubStart.Format(time.RFC3339))
+	<-time.After(time.Until(lastSubStart))
+	println()
+	println()
 
 	// Add blockchain to subnet
 	ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
@@ -220,6 +235,8 @@ func CreateSpellPreTable(i *Info) string {
 
 	if len(i.nodeIDs) > 0 {
 		tb.Append([]string{formatter.F("{{magenta}}NEW PRIMARY NETWORK VALIDATORS{{/}}"), formatter.F("{{light-gray}}{{bold}}%v{{/}}", i.nodeIDs)})
+		tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateStart.Format(time.RFC3339))})
+		tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateEnd.Format(time.RFC3339))})
 		tb.Append([]string{formatter.F("{{magenta}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(i.stakeAmount)))})
 		validateRewardFeePercent := humanize.FormatFloat("#,###.###", float64(i.validateRewardFeePercent))
 		tb.Append([]string{formatter.F("{{magenta}}VALIDATE REWARD FEE{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} %%", validateRewardFeePercent)})
@@ -227,8 +244,6 @@ func CreateSpellPreTable(i *Info) string {
 		tb.Append([]string{formatter.F("{{cyan}}{{bold}}CHANGE ADDRESS{{/}}"), formatter.F("{{light-gray}}%s{{/}}", i.changeAddr)})
 	}
 
-	tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateStart.Format(time.RFC3339))})
-	tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateEnd.Format(time.RFC3339))})
 	tb.Append([]string{formatter.F("{{magenta}}VALIDATE WEIGHT{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", humanize.Comma(int64(i.validateWeight)))})
 
 	tb.Append([]string{formatter.F("{{dark-green}}CHAIN NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.chainName)})
@@ -244,9 +259,6 @@ func CreateSpellPostTable(i *Info) string {
 
 	tb.Append([]string{formatter.F("{{blue}}SUBNET ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.subnetID)})
 	tb.Append([]string{formatter.F("{{blue}}BLOCKCHAIN ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.blockchainID)})
-
-	tb.Append([]string{formatter.F("{{magenta}}VALIDATE START{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateStart.Format(time.RFC3339))})
-	tb.Append([]string{formatter.F("{{magenta}}VALIDATE END{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.validateEnd.Format(time.RFC3339))})
 
 	tb.Append([]string{formatter.F("{{dark-green}}CHAIN NAME{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.chainName)})
 	tb.Append([]string{formatter.F("{{dark-green}}VM ID{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.vmID)})

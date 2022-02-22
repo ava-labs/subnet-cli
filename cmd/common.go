@@ -5,10 +5,12 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
+	ledger "github.com/ava-labs/avalanche-ledger-go"
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
@@ -73,11 +75,11 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	txFee, err := cli.Info().Client().GetTxFee()
+	txFee, err := cli.Info().Client().GetTxFee(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
-	networkName, err := cli.Info().Client().GetNetworkName()
+	networkName, err := cli.Info().Client().GetNetworkName(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,9 +93,20 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	info.key, err = key.Load(cli.NetworkID(), privKeyPath)
-	if err != nil {
-		return nil, nil, err
+	if ledgerAccount < 0 {
+		info.key, err = key.Load(cli.NetworkID(), privKeyPath)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		ledgerDevice, err = ledger.Connect()
+		if err != nil {
+			return nil, nil, err
+		}
+		info.key, err = ledgerDevice.Address("fuji", 0, 0)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

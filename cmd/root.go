@@ -6,6 +6,7 @@ package cmd
 import (
 	"time"
 
+	ledger "github.com/ava-labs/avalanche-ledger-go"
 	"github.com/spf13/cobra"
 
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
@@ -22,6 +23,9 @@ var (
 	logLevel     string
 
 	privKeyPath string
+
+	ledgerAccount int
+	ledgerDevice  *ledger.Ledger
 
 	privateURI string
 	publicURI  string

@@ -101,7 +101,8 @@ func (pc *p) Client() platformvm.Client            { return pc.cli }
 func (pc *p) Checker() internal_platformvm.Checker { return pc.checker }
 
 func (pc *p) Balance(key key.Key) (uint64, error) {
-	pb, err := pc.cli.GetBalance(key.P())
+	// TODO: use ctx
+	pb, err := pc.cli.GetBalance(context.Background(), []string{key.P()})
 	if err != nil {
 		return 0, err
 	}
@@ -117,7 +118,7 @@ func (pc *p) CreateSubnet(
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -168,7 +169,7 @@ func (pc *p) CreateSubnet(
 		return subnetID, 0, nil
 	}
 
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return subnetID, 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
@@ -181,6 +182,8 @@ func (pc *p) CreateSubnet(
 }
 
 func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
+	// TODO: use ctx
+	//
 	// If no [rsubnetID] is provided, just use the PrimaryNetworkID value.
 	subnetID := constants.PrimaryNetworkID
 	if rsubnetID != ids.Empty {
@@ -188,7 +191,7 @@ func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	}
 
 	// Find validator data associated with [nodeID]
-	vs, err := pc.Client().GetCurrentValidators(subnetID, []ids.ShortID{nodeID})
+	vs, err := pc.Client().GetCurrentValidators(context.Background(), subnetID, []ids.ShortID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
@@ -285,7 +288,7 @@ func (pc *p) AddSubnetValidator(
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -338,7 +341,7 @@ func (pc *p) AddSubnetValidator(
 	}); err != nil {
 		return 0, err
 	}
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}

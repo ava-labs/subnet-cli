@@ -32,6 +32,7 @@ var (
 )
 
 // Key defines methods for key manager interface.
+// TODO: separate addresser/Spender from Key
 type Key interface {
 	Addresser
 	Spender
@@ -148,6 +149,7 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	}
 
 	// Parse HRP to create valid address
+	// TODO: use this with address
 	switch networkID {
 	case constants.LocalID:
 		m.hrp = constants.LocalHRP

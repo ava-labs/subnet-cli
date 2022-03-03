@@ -13,6 +13,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/status"
 	"github.com/ava-labs/subnet-cli/internal/poll"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,7 @@ var (
 )
 
 type Checker interface {
-	PollTx(ctx context.Context, txID ids.ID, s platformvm.Status) (time.Duration, error)
+	PollTx(ctx context.Context, txID ids.ID, s status.Status) (time.Duration, error)
 	PollSubnet(ctx context.Context, subnetID ids.ID) (time.Duration, error)
 	PollBlockchain(ctx context.Context, opts ...OpOption) (time.Duration, error)
 }
@@ -43,25 +44,25 @@ func NewChecker(poller poll.Poller, cli platformvm.Client) Checker {
 	}
 }
 
-func (c *checker) PollTx(ctx context.Context, txID ids.ID, s platformvm.Status) (time.Duration, error) {
+func (c *checker) PollTx(ctx context.Context, txID ids.ID, s status.Status) (time.Duration, error) {
 	zap.L().Info("polling P-Chain tx",
 		zap.String("txId", txID.String()),
 		zap.String("expectedStatus", s.String()),
 	)
 	return c.poller.Poll(ctx, func() (done bool, err error) {
-		status, err := c.cli.GetTxStatus(txID, true)
+		txStatus, err := c.cli.GetTxStatus(ctx, txID, true)
 		if err != nil {
 			return false, err
 		}
 		zap.L().Debug("tx",
-			zap.String("status", status.Status.String()),
-			zap.String("reason", status.Reason),
+			zap.String("status", txStatus.Status.String()),
+			zap.String("reason", txStatus.Reason),
 		)
-		if s == platformvm.Committed &&
-			(status.Status == platformvm.Aborted || status.Status == platformvm.Dropped) {
+		if s == status.Committed &&
+			(txStatus.Status == status.Aborted || txStatus.Status == status.Dropped) {
 			return true, ErrAbortedDropped
 		}
-		return status.Status == s, nil
+		return txStatus.Status == s, nil
 	})
 }
 
@@ -73,7 +74,7 @@ func (c *checker) PollSubnet(ctx context.Context, subnetID ids.ID) (took time.Du
 	zap.L().Info("polling subnet",
 		zap.String("subnetId", subnetID.String()),
 	)
-	took, err = c.PollTx(ctx, subnetID, platformvm.Committed)
+	took, err = c.PollTx(ctx, subnetID, status.Committed)
 	if err != nil {
 		return took, err
 	}
@@ -88,7 +89,7 @@ func (c *checker) findSubnet(ctx context.Context, subnetID ids.ID) (took time.Du
 		zap.String("subnetId", subnetID.String()),
 	)
 	took, err = c.poller.Poll(ctx, func() (done bool, err error) {
-		ss, err := c.cli.GetSubnets([]ids.ID{subnetID})
+		ss, err := c.cli.GetSubnets(ctx, []ids.ID{subnetID})
 		if err != nil {
 			return false, err
 		}
@@ -129,7 +130,7 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 	)
 
 	prev := took
-	took, err = c.PollTx(ctx, ret.blockchainID, platformvm.Committed)
+	took, err = c.PollTx(ctx, ret.blockchainID, status.Committed)
 	took += prev
 	if err != nil {
 		return took, err
@@ -139,13 +140,13 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 	prev = took
 	took, err = c.poller.Poll(ctx, func() (done bool, err error) {
 		if !statusPolled {
-			status, err := c.cli.GetBlockchainStatus(ret.blockchainID.String())
+			txStatus, err := c.cli.GetBlockchainStatus(ctx, ret.blockchainID.String())
 			if err != nil {
 				return false, err
 			}
-			if status != ret.blockchainStatus {
+			if txStatus != ret.blockchainStatus {
 				zap.L().Info("waiting for blockchain status",
-					zap.String("current", status.String()),
+					zap.String("current", txStatus.String()),
 				)
 				return false, nil
 			}
@@ -155,7 +156,7 @@ func (c *checker) PollBlockchain(ctx context.Context, opts ...OpOption) (took ti
 			}
 		}
 
-		bootstrapped, err := ret.info.IsBootstrapped(ret.blockchainID.String())
+		bootstrapped, err := ret.info.IsBootstrapped(ctx, ret.blockchainID.String())
 		if err != nil {
 			return false, err
 		}
@@ -174,7 +175,7 @@ func (c *checker) findBlockchain(ctx context.Context, subnetID ids.ID) (bchID id
 		zap.String("subnetId", subnetID.String()),
 	)
 	took, err = c.poller.Poll(ctx, func() (done bool, err error) {
-		bcs, err := c.cli.GetBlockchains()
+		bcs, err := c.cli.GetBlockchains(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -194,7 +195,7 @@ type Op struct {
 	subnetID     ids.ID
 	blockchainID ids.ID
 
-	blockchainStatus platformvm.BlockchainStatus
+	blockchainStatus status.BlockchainStatus
 
 	info                        info.Client
 	checkBlockchainBootstrapped bool
@@ -220,7 +221,7 @@ func WithBlockchainID(bch ids.ID) OpOption {
 	}
 }
 
-func WithBlockchainStatus(s platformvm.BlockchainStatus) OpOption {
+func WithBlockchainStatus(s status.BlockchainStatus) OpOption {
 	return func(op *Op) {
 		op.blockchainStatus = s
 	}

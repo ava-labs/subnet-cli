@@ -24,7 +24,7 @@ func AddCommand() *cobra.Command {
 	)
 	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
-	cmd.PersistentFlags().IntVarP(&ledgerAccount, "ledger-account", "l", -1, "ledger address index")
+	cmd.PersistentFlags().BoolVarP(&useLedger, "ledger-account", "l", false, "use ledger to sign transactions")
 	return cmd
 }
 

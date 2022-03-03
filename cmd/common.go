@@ -68,9 +68,8 @@ type Info struct {
 
 func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	cli, err := client.New(client.Config{
-		URI:            uri,
-		PollInterval:   pollInterval,
-		RequestTimeout: requestTimeout,
+		URI:          uri,
+		PollInterval: pollInterval,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -93,7 +92,7 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	if ledgerAccount < 0 {
+	if !useLedger {
 		info.key, err = key.Load(cli.NetworkID(), privKeyPath)
 		if err != nil {
 			return nil, nil, err
@@ -103,10 +102,12 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		info.key, err = ledgerDevice.Address("fuji", 0, 0)
+		ledgerAddress, err := ledgerDevice.Address("fuji", 0, 0)
 		if err != nil {
 			return nil, nil, err
 		}
+		color.Outf("{{blue}}ledger address %s{{/}}\n", ledgerAddress)
+		panic("not implemented")
 	}
 	info.balance, err = cli.P().Balance(info.key)
 	if err != nil {

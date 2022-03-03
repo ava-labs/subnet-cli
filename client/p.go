@@ -20,6 +20,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/status"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	internal_avax "github.com/ava-labs/subnet-cli/internal/avax"
 	"github.com/ava-labs/subnet-cli/internal/key"
@@ -346,7 +347,7 @@ func (pc *p) AddSubnetValidator(
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
+	return pc.checker.PollTx(ctx, txID, status.Committed)
 }
 
 // ref. "platformvm.VM.newAddValidatorTx".
@@ -456,12 +457,12 @@ func (pc *p) AddValidator(
 	}); err != nil {
 		return 0, err
 	}
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
+	return pc.checker.PollTx(ctx, txID, status.Committed)
 }
 
 // ref. "platformvm.VM.newCreateChainTx".
@@ -484,7 +485,7 @@ func (pc *p) CreateBlockchain(
 		return ids.Empty, 0, ErrEmptyID
 	}
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -533,7 +534,7 @@ func (pc *p) CreateBlockchain(
 	}); err != nil {
 		return ids.Empty, 0, err
 	}
-	blkChainID, err = pc.cli.IssueTx(pTx.Bytes())
+	blkChainID, err = pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return ids.Empty, 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
@@ -545,7 +546,7 @@ func (pc *p) CreateBlockchain(
 			ctx,
 			internal_platformvm.WithSubnetID(subnetID),
 			internal_platformvm.WithBlockchainID(blkChainID),
-			internal_platformvm.WithBlockchainStatus(platformvm.Validating),
+			internal_platformvm.WithBlockchainStatus(status.Validating),
 			internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
 		)
 		took += bTook
@@ -624,7 +625,7 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 		ret.changeAddr = k.Key().PublicKey().Address()
 	}
 
-	ubs, _, err := pc.cli.GetAtomicUTXOs([]string{k.P()}, "", 100, "", "")
+	ubs, _, err := pc.cli.GetAtomicUTXOs(context.Background(), []string{k.P()}, "", 100, "", "")
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -834,7 +835,7 @@ func (pc *p) authorize(k key.Key, subnetID ids.ID) (
 	signers []*crypto.PrivateKeySECP256K1R, // keys that prove ownership
 	err error,
 ) {
-	tb, err := pc.cli.GetTx(subnetID)
+	tb, err := pc.cli.GetTx(context.Background(), subnetID)
 	if err != nil {
 		return nil, nil, err
 	}

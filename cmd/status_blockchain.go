@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/status"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/spf13/cobra"
@@ -48,7 +48,7 @@ func createStatusFunc(cmd *cobra.Command, args []string) error {
 
 	opts := []internal_platformvm.OpOption{
 		internal_platformvm.WithBlockchainID(blkChainID),
-		internal_platformvm.WithBlockchainStatus(platformvm.Validating),
+		internal_platformvm.WithBlockchainStatus(status.Validating),
 	}
 	if checkBootstrapped {
 		opts = append(opts, internal_platformvm.WithCheckBlockchainBootstrapped(cli.Info().Client()))

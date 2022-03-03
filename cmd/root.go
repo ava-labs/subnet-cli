@@ -24,8 +24,8 @@ var (
 
 	privKeyPath string
 
-	ledgerAccount int
-	ledgerDevice  *ledger.Ledger
+	useLedger    bool
+	ledgerDevice *ledger.Ledger
 
 	privateURI string
 	publicURI  string

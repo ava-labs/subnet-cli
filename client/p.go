@@ -103,23 +103,15 @@ type p struct {
 }
 
 func ledgerAddress(l *ledger.Ledger) (string, ids.ShortID) {
-	rawAddr, err := l.Address("fuji", 0, 0)
+	_, pk, err := l.Address("fuji", 0, 0)
 	if err != nil {
 		panic(err)
 	}
-	_, pk, err := formatting.ParseBech32(rawAddr)
+	fullAddr, err := formatting.FormatAddress("P", "fuji", pk[:])
 	if err != nil {
 		panic(err)
 	}
-	addr, err := ids.ToShortID(pk)
-	if err != nil {
-		panic(err)
-	}
-	fullAddr, err := formatting.FormatAddress("P", "fuji", pk)
-	if err != nil {
-		panic(err)
-	}
-	return fullAddr, addr
+	return fullAddr, pk
 }
 
 // Sign this transaction with the provided ledger
@@ -200,6 +192,7 @@ func ledgerManagerSpend(addr ids.ShortID, output *avax.UTXO, time uint64) (
 }
 
 // Spend attempts to create an input
+// TODO: return paths to sign/address to sign with paths?
 func ledgerSpend(addr ids.ShortID, out verify.Verifiable, time uint64) (verify.Verifiable, error) {
 	switch out := out.(type) {
 	case *secp256k1fx.MintOutput:

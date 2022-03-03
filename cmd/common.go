@@ -111,19 +111,12 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 			return nil, nil, err
 		}
 		color.Outf("{{yellow}}deriving address from ledger...{{/}}\n")
-		rawAddr, err := ledgerDevice.Address(networkName, 0, 0)
+		_, pk, err := ledgerDevice.Address(networkName, 0, 0)
 		if err != nil {
 			return nil, nil, err
 		}
-		_, pk, err := formatting.ParseBech32(rawAddr)
-		if err != nil {
-			panic(err)
-		}
-		info.shortAddr, err = ids.ToShortID(pk)
-		if err != nil {
-			panic(err)
-		}
-		addr, err := formatting.FormatAddress("P", networkName, pk)
+		info.shortAddr = pk
+		addr, err := formatting.FormatAddress("P", networkName, pk[:])
 		if err != nil {
 			panic(err)
 		}

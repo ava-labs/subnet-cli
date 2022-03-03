@@ -91,7 +91,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		info.rewardAddr = info.key.Key().PublicKey().Address()
+		info.rewardAddr = info.shortAddr
 	}
 	if changeAddrs != "" {
 		info.changeAddr, err = ids.ShortFromPrefixedString(changeAddrs, constants.NodeIDPrefix)
@@ -99,7 +99,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		info.changeAddr = info.key.Key().PublicKey().Address()
+		info.changeAddr = info.shortAddr
 	}
 	info.requiredBalance = info.stakeAmount * uint64(len(info.nodeIDs))
 	if err := info.CheckBalance(); err != nil {

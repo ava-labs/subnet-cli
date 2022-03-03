@@ -111,7 +111,7 @@ func ledgerAddress(l *ledger.Ledger) (string, ids.ShortID) {
 	if err != nil {
 		panic(err)
 	}
-	addr, err := ids.ToShortID(hashing.PubkeyBytesToAddress(pk))
+	addr, err := ids.ToShortID(pk)
 	if err != nil {
 		panic(err)
 	}
@@ -231,7 +231,14 @@ func ledgerMatch(addr ids.ShortID, owners *secp256k1fx.OutputOwners, time uint64
 	sigs := make([]uint32, 0, owners.Threshold)
 	for i := uint32(0); i < uint32(len(owners.Addrs)) && uint32(len(sigs)) < owners.Threshold; i++ {
 		if owners.Addrs[i] == addr {
+			fmt.Println("owner matches:", owners.Addrs[i])
 			sigs = append(sigs, i)
+		} else {
+			a, err := formatting.FormatAddress("P", "fuji", owners.Addrs[i][:])
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("owner doesn't match:", owners.Addrs[i], a)
 		}
 	}
 	return sigs, uint32(len(sigs)) == owners.Threshold

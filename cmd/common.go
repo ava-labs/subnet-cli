@@ -42,8 +42,9 @@ type Info struct {
 	stakeAmount     uint64
 	requiredBalance uint64
 
-	key  key.Key
-	addr string
+	key       key.Key
+	addr      string
+	shortAddr ids.ShortID
 
 	networkName string
 
@@ -118,16 +119,20 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		if err != nil {
 			panic(err)
 		}
+		info.shortAddr, err = ids.ToShortID(pk)
+		if err != nil {
+			panic(err)
+		}
 		addr, err := formatting.FormatAddress("P", networkName, pk)
 		if err != nil {
 			panic(err)
 		}
+		info.addr = addr
 		color.Outf("{{yellow}}derived address from ledger: %s{{/}}\n", addr)
 		info.balance, err = cli.P().Balance(addr)
 		if err != nil {
 			return nil, nil, err
 		}
-		info.addr = addr
 	}
 	return cli, info, nil
 }
@@ -146,7 +151,7 @@ func CreateLogger() error {
 func (i *Info) CheckBalance() error {
 	if i.balance < i.requiredBalance {
 		color.Outf("{{red}}insufficient funds to perform operation. get more at https://faucet.avax-test.network{{/}}\n")
-		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.key.P(), i.requiredBalance, i.balance)
+		return fmt.Errorf("%w: on %s (expected=%d, have=%d)", ErrInsufficientFunds, i.addr, i.requiredBalance, i.balance)
 	}
 	return nil
 }
@@ -166,7 +171,7 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	tb.SetRowLine(true)
 	tb.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	tb.Append([]string{formatter.F("{{cyan}}{{bold}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
+	tb.Append([]string{formatter.F("{{cyan}}{{bold}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.addr)})
 	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
 	if i.txFee > 0 {
 		txFee := float64(i.txFee) / float64(units.Avax)

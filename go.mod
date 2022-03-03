@@ -14,6 +14,8 @@ require (
 	go.uber.org/zap v1.19.0
 )
 
+replace github.com/ava-labs/avalanche-ledger-go => ../avalanche-ledger-go
+
 require (
 	github.com/AppsFlyer/go-sundheit v0.2.0 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect

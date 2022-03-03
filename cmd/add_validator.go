@@ -137,7 +137,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 		info.validateStart = time.Now().Add(30 * time.Second)
 		took, err := cli.P().AddValidator(
 			ctx,
-			info.key,
+			ledgerDevice,
 			nodeID,
 			info.validateStart,
 			info.validateEnd,
@@ -159,7 +159,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0
-	info.balance, err = cli.P().Balance(info.key)
+	info.balance, err = cli.P().Balance(info.addr)
 	if err != nil {
 		return err
 	}

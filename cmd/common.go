@@ -14,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
@@ -41,7 +42,8 @@ type Info struct {
 	stakeAmount     uint64
 	requiredBalance uint64
 
-	key key.Key
+	key  key.Key
+	addr string
 
 	networkName string
 
@@ -97,21 +99,35 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		info.balance, err = cli.P().Balance(info.key.P())
+		if err != nil {
+			return nil, nil, err
+		}
 	} else {
+		color.Outf("{{yellow}}connecting to ledger...{{/}}\n")
 		ledgerDevice, err = ledger.Connect()
 		if err != nil {
 			return nil, nil, err
 		}
-		ledgerAddress, err := ledgerDevice.Address("fuji", 0, 0)
+		color.Outf("{{yellow}}deriving address from ledger...{{/}}\n")
+		rawAddr, err := ledgerDevice.Address(networkName, 0, 0)
 		if err != nil {
 			return nil, nil, err
 		}
-		color.Outf("{{blue}}ledger address %s{{/}}\n", ledgerAddress)
-		panic("not implemented")
-	}
-	info.balance, err = cli.P().Balance(info.key)
-	if err != nil {
-		return nil, nil, err
+		_, pk, err := formatting.ParseBech32(rawAddr)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := formatting.FormatAddress("P", networkName, pk)
+		if err != nil {
+			panic(err)
+		}
+		color.Outf("{{yellow}}derived address from ledger: %s{{/}}\n", addr)
+		info.balance, err = cli.P().Balance(addr)
+		if err != nil {
+			return nil, nil, err
+		}
+		info.addr = addr
 	}
 	return cli, info, nil
 }

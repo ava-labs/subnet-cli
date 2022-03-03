@@ -94,7 +94,7 @@ var keyFactory = new(crypto.FactorySECP256K1R)
 
 func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	ret := &Op{}
-	ret.applyOpts(opts)
+	ret.ApplyOpts(opts)
 
 	// set via "WithPrivateKeyEncoded"
 	if len(ret.privKeyEncoded) > 0 {
@@ -191,10 +191,10 @@ func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	inputSigners [][]*crypto.PrivateKeySECP256K1R,
 ) {
 	ret := &Op{}
-	ret.applyOpts(opts)
+	ret.ApplyOpts(opts)
 
 	for _, out := range outputs {
-		input, signers, err := m.spend(out, ret.time)
+		input, signers, err := m.spend(out, ret.Time)
 		if err != nil {
 			zap.L().Warn("cannot spend with current key", zap.Error(err))
 			continue
@@ -206,8 +206,8 @@ func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 			In:     input,
 		})
 		inputSigners = append(inputSigners, signers)
-		if ret.targetAmount > 0 &&
-			totalBalanceToSpend > ret.targetAmount+ret.feeDeduct {
+		if ret.TargetAmount > 0 &&
+			totalBalanceToSpend > ret.TargetAmount+ret.FeeDeduct {
 			break
 		}
 	}
@@ -357,14 +357,14 @@ type Op struct {
 	privKey        *crypto.PrivateKeySECP256K1R
 	privKeyEncoded string
 
-	time         uint64
-	targetAmount uint64
-	feeDeduct    uint64
+	Time         uint64
+	TargetAmount uint64
+	FeeDeduct    uint64
 }
 
 type OpOption func(*Op)
 
-func (op *Op) applyOpts(opts []OpOption) {
+func (op *Op) ApplyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
 	}
@@ -386,13 +386,13 @@ func WithPrivateKeyEncoded(privKey string) OpOption {
 
 func WithTime(t uint64) OpOption {
 	return func(op *Op) {
-		op.time = t
+		op.Time = t
 	}
 }
 
 func WithTargetAmount(ta uint64) OpOption {
 	return func(op *Op) {
-		op.targetAmount = ta
+		op.TargetAmount = ta
 	}
 }
 
@@ -400,6 +400,6 @@ func WithTargetAmount(ta uint64) OpOption {
 // e.g., "units.MilliAvax" for X/P-Chain transfer.
 func WithFeeDeduct(fee uint64) OpOption {
 	return func(op *Op) {
-		op.feeDeduct = fee
+		op.FeeDeduct = fee
 	}
 }

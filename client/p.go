@@ -10,11 +10,15 @@ import (
 	"strconv"
 	"time"
 
+	ledger "github.com/ava-labs/avalanche-ledger-go"
 	api_info "github.com/ava-labs/avalanchego/api/info"
+	"github.com/ava-labs/avalanchego/codec"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/utils/math"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -50,7 +54,7 @@ var (
 type P interface {
 	Client() platformvm.Client
 	Checker() internal_platformvm.Checker
-	Balance(key key.Key) (uint64, error)
+	Balance(addr string) (uint64, error)
 	CreateSubnet(
 		ctx context.Context,
 		key key.Key,
@@ -58,7 +62,7 @@ type P interface {
 	) (subnetID ids.ID, took time.Duration, err error)
 	AddValidator(
 		ctx context.Context,
-		k key.Key,
+		l *ledger.Ledger,
 		nodeID ids.ShortID,
 		start time.Time,
 		end time.Time,
@@ -98,12 +102,147 @@ type p struct {
 	checker internal_platformvm.Checker
 }
 
+func ledgerAddress(l *ledger.Ledger) (string, ids.ShortID) {
+	rawAddr, err := l.Address("fuji", 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	_, pk, err := formatting.ParseBech32(rawAddr)
+	if err != nil {
+		panic(err)
+	}
+	addr, err := ids.ToShortID(hashing.PubkeyBytesToAddress(pk))
+	if err != nil {
+		panic(err)
+	}
+	fullAddr, err := formatting.FormatAddress("P", "fuji", pk)
+	if err != nil {
+		panic(err)
+	}
+	return fullAddr, addr
+}
+
+// Sign this transaction with the provided ledger
+func ledgerSignTx(tx *platformvm.Tx, inputs int, c codec.Manager, device *ledger.Ledger) error {
+	unsignedBytes, err := c.Marshal(platformvm.CodecVersion, &tx.UnsignedTx)
+	if err != nil {
+		return fmt.Errorf("couldn't marshal UnsignedTx: %w", err)
+	}
+
+	// Attach credentials
+	hash := hashing.ComputeHash256(unsignedBytes)
+	cred := &secp256k1fx.Credential{
+		Sigs: make([][crypto.SECP256K1RSigLen]byte, 1),
+	}
+	sig, err := device.SignHash(hash, [][]uint32{{0, 0}})
+	if err != nil {
+		return fmt.Errorf("problem generating credential: %w", err)
+	}
+	copy(cred.Sigs[0][:], sig[0])
+	// CLEANUP
+	for i := 0; i < inputs; i++ {
+		tx.Creds = append(tx.Creds, cred) // Attach credential
+	}
+
+	signedBytes, err := c.Marshal(platformvm.CodecVersion, tx)
+	if err != nil {
+		return fmt.Errorf("couldn't marshal ProposalTx: %w", err)
+	}
+	tx.Initialize(unsignedBytes, signedBytes)
+	return nil
+}
+
+func ledgerManagerSpends(addr ids.ShortID, outputs []*avax.UTXO, opts ...key.OpOption) (
+	totalBalanceToSpend uint64,
+	inputs []*avax.TransferableInput,
+) {
+	ret := &key.Op{}
+	ret.ApplyOpts(opts)
+
+	for _, out := range outputs {
+		input, err := ledgerManagerSpend(addr, out, ret.Time)
+		if err != nil {
+			zap.L().Warn("cannot spend with current key", zap.Error(err))
+			continue
+		}
+		totalBalanceToSpend += input.Amount()
+		inputs = append(inputs, &avax.TransferableInput{
+			UTXOID: out.UTXOID,
+			Asset:  out.Asset,
+			In:     input,
+		})
+		if ret.TargetAmount > 0 &&
+			totalBalanceToSpend > ret.TargetAmount+ret.FeeDeduct {
+			break
+		}
+	}
+	avax.SortTransferableInputs(inputs)
+
+	return totalBalanceToSpend, inputs
+}
+
+func ledgerManagerSpend(addr ids.ShortID, output *avax.UTXO, time uint64) (
+	input avax.TransferableIn,
+	err error,
+) {
+	// "time" is used to check whether the key owner
+	// is still within the lock time (thus can't spend).
+	inputf, err := ledgerSpend(addr, output.Out, time)
+	if err != nil {
+		return nil, err
+	}
+	var ok bool
+	input, ok = inputf.(avax.TransferableIn)
+	if !ok {
+		return nil, errors.New("invalid type")
+	}
+	return input, nil
+}
+
+// Spend attempts to create an input
+func ledgerSpend(addr ids.ShortID, out verify.Verifiable, time uint64) (verify.Verifiable, error) {
+	switch out := out.(type) {
+	case *secp256k1fx.MintOutput:
+		if sigIndices, able := ledgerMatch(addr, &out.OutputOwners, time); able {
+			return &secp256k1fx.Input{
+				SigIndices: sigIndices,
+			}, nil
+		}
+		return nil, errors.New("can't spend")
+	case *secp256k1fx.TransferOutput:
+		if sigIndices, able := ledgerMatch(addr, &out.OutputOwners, time); able {
+			return &secp256k1fx.TransferInput{
+				Amt: out.Amt,
+				Input: secp256k1fx.Input{
+					SigIndices: sigIndices,
+				},
+			}, nil
+		}
+		return nil, errors.New("can't spend")
+	}
+	return nil, fmt.Errorf("can't spend UTXO because it is unexpected type %T", out)
+}
+
+// Match attempts to match a list of addresses up to the provided threshold
+func ledgerMatch(addr ids.ShortID, owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, bool) {
+	if time < owners.Locktime {
+		return nil, false
+	}
+	sigs := make([]uint32, 0, owners.Threshold)
+	for i := uint32(0); i < uint32(len(owners.Addrs)) && uint32(len(sigs)) < owners.Threshold; i++ {
+		if owners.Addrs[i] == addr {
+			sigs = append(sigs, i)
+		}
+	}
+	return sigs, uint32(len(sigs)) == owners.Threshold
+}
+
 func (pc *p) Client() platformvm.Client            { return pc.cli }
 func (pc *p) Checker() internal_platformvm.Checker { return pc.checker }
 
-func (pc *p) Balance(key key.Key) (uint64, error) {
+func (pc *p) Balance(addr string) (uint64, error) {
 	// TODO: use ctx
-	pb, err := pc.cli.GetBalance(context.Background(), []string{key.P()})
+	pb, err := pc.cli.GetBalance(context.Background(), []string{addr})
 	if err != nil {
 		return 0, err
 	}
@@ -116,70 +255,71 @@ func (pc *p) CreateSubnet(
 	k key.Key,
 	opts ...OpOption,
 ) (subnetID ids.ID, took time.Duration, err error) {
-	ret := &Op{}
-	ret.applyOpts(opts)
+	panic("blah")
+	// ret := &Op{}
+	// ret.applyOpts(opts)
 
-	fi, err := pc.info.GetTxFee(ctx)
-	if err != nil {
-		return ids.Empty, 0, err
-	}
-	createSubnetTxFee := uint64(fi.CreateSubnetTxFee)
+	// fi, err := pc.info.GetTxFee(ctx)
+	// if err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// createSubnetTxFee := uint64(fi.CreateSubnetTxFee)
 
-	zap.L().Info("creating subnet",
-		zap.Bool("dryMode", ret.dryMode),
-		zap.String("assetId", pc.assetID.String()),
-		zap.Uint64("createSubnetTxFee", createSubnetTxFee),
-	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createSubnetTxFee)
-	if err != nil {
-		return ids.Empty, 0, err
-	}
+	// zap.L().Info("creating subnet",
+	// 	zap.Bool("dryMode", ret.dryMode),
+	// 	zap.String("assetId", pc.assetID.String()),
+	// 	zap.Uint64("createSubnetTxFee", createSubnetTxFee),
+	// )
+	// ins, returnedOuts, _, signers, err := pc.stake(k, createSubnetTxFee)
+	// if err != nil {
+	// 	return ids.Empty, 0, err
+	// }
 
-	utx := &platformvm.UnsignedCreateSubnetTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.networkID,
-			BlockchainID: pc.pChainID,
-			Ins:          ins,
-			Outs:         returnedOuts,
-		}},
-		Owner: &secp256k1fx.OutputOwners{
-			// [threshold] of [ownerAddrs] needed to manage this subnet
-			Threshold: 1,
+	// utx := &platformvm.UnsignedCreateSubnetTx{
+	// 	BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	// 		NetworkID:    pc.networkID,
+	// 		BlockchainID: pc.pChainID,
+	// 		Ins:          ins,
+	// 		Outs:         returnedOuts,
+	// 	}},
+	// 	Owner: &secp256k1fx.OutputOwners{
+	// 		// [threshold] of [ownerAddrs] needed to manage this subnet
+	// 		Threshold: 1,
 
-			// address to send change to, if there is any,
-			// control addresses for the new subnet
-			Addrs: []ids.ShortID{k.Key().PublicKey().Address()},
-		},
-	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
-	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
-		return ids.Empty, 0, err
-	}
-	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.networkID,
-		ChainID:   pc.pChainID,
-	}); err != nil {
-		return ids.Empty, 0, err
-	}
+	// 		// address to send change to, if there is any,
+	// 		// control addresses for the new subnet
+	// 		Addrs: []ids.ShortID{k.Key().PublicKey().Address()},
+	// 	},
+	// }
+	// pTx := &platformvm.Tx{
+	// 	UnsignedTx: utx,
+	// }
+	// if err := pTx.Sign(pCodecManager, signers); err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// if err := utx.SyntacticVerify(&snow.Context{
+	// 	NetworkID: pc.networkID,
+	// 	ChainID:   pc.pChainID,
+	// }); err != nil {
+	// 	return ids.Empty, 0, err
+	// }
 
-	// subnet tx ID is the subnet ID based on ins/outs
-	subnetID = pTx.ID()
-	if ret.dryMode {
-		return subnetID, 0, nil
-	}
+	// // subnet tx ID is the subnet ID based on ins/outs
+	// subnetID = pTx.ID()
+	// if ret.dryMode {
+	// 	return subnetID, 0, nil
+	// }
 
-	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
-	if err != nil {
-		return subnetID, 0, fmt.Errorf("failed to issue tx: %w", err)
-	}
-	if txID != subnetID {
-		return subnetID, 0, ErrUnexpectedSubnetID
-	}
+	// txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
+	// if err != nil {
+	// 	return subnetID, 0, fmt.Errorf("failed to issue tx: %w", err)
+	// }
+	// if txID != subnetID {
+	// 	return subnetID, 0, ErrUnexpectedSubnetID
+	// }
 
-	took, err = pc.checker.PollSubnet(ctx, txID)
-	return txID, took, err
+	// took, err = pc.checker.PollSubnet(ctx, txID)
+	// return txID, took, err
 }
 
 func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
@@ -256,109 +396,111 @@ func (pc *p) AddSubnetValidator(
 	weight uint64,
 	opts ...OpOption,
 ) (took time.Duration, err error) {
-	ret := &Op{}
-	ret.applyOpts(opts)
+	panic("blah")
+	// ret := &Op{}
+	// ret.applyOpts(opts)
 
-	if subnetID == ids.Empty {
-		// same as "ErrNamedSubnetCantBePrimary"
-		// in case "subnetID == constants.PrimaryNetworkID"
-		return 0, ErrEmptyID
-	}
-	if nodeID == ids.ShortEmpty {
-		return 0, ErrEmptyID
-	}
+	// if subnetID == ids.Empty {
+	// 	// same as "ErrNamedSubnetCantBePrimary"
+	// 	// in case "subnetID == constants.PrimaryNetworkID"
+	// 	return 0, ErrEmptyID
+	// }
+	// if nodeID == ids.ShortEmpty {
+	// 	return 0, ErrEmptyID
+	// }
 
-	_, _, err = pc.GetValidator(subnetID, nodeID)
-	if !errors.Is(err, ErrValidatorNotFound) {
-		return 0, ErrAlreadySubnetValidator
-	}
+	// _, _, err = pc.GetValidator(subnetID, nodeID)
+	// if !errors.Is(err, ErrValidatorNotFound) {
+	// 	return 0, ErrAlreadySubnetValidator
+	// }
 
-	validateStart, validateEnd, err := pc.GetValidator(ids.ID{}, nodeID)
-	if errors.Is(err, ErrValidatorNotFound) {
-		return 0, ErrNotValidatingPrimaryNetwork
-	} else if err != nil {
-		return 0, fmt.Errorf("%w: unable to get primary network validator record", err)
-	}
-	// make sure the range is within staker validation start/end on the primary network
-	// TODO: official wallet client should define the error value for such case
-	// currently just returns "staking too short"
-	if start.Before(validateStart) {
-		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
-	}
-	if end.After(validateEnd) {
-		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
-	}
+	// validateStart, validateEnd, err := pc.GetValidator(ids.ID{}, nodeID)
+	// if errors.Is(err, ErrValidatorNotFound) {
+	// 	return 0, ErrNotValidatingPrimaryNetwork
+	// } else if err != nil {
+	// 	return 0, fmt.Errorf("%w: unable to get primary network validator record", err)
+	// }
+	// // make sure the range is within staker validation start/end on the primary network
+	// // TODO: official wallet client should define the error value for such case
+	// // currently just returns "staking too short"
+	// if start.Before(validateStart) {
+	// 	return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, start, validateStart)
+	// }
+	// if end.After(validateEnd) {
+	// 	return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
+	// }
 
-	fi, err := pc.info.GetTxFee(ctx)
-	if err != nil {
-		return 0, err
-	}
-	txFee := uint64(fi.TxFee)
+	// fi, err := pc.info.GetTxFee(ctx)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// txFee := uint64(fi.TxFee)
 
-	zap.L().Info("adding subnet validator",
-		zap.String("subnetId", subnetID.String()),
-		zap.Uint64("txFee", txFee),
-		zap.Time("start", start),
-		zap.Time("end", end),
-		zap.Uint64("weight", weight),
-	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, txFee)
-	if err != nil {
-		return 0, err
-	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
-	if err != nil {
-		return 0, err
-	}
-	signers = append(signers, subnetSigners)
+	// zap.L().Info("adding subnet validator",
+	// 	zap.String("subnetId", subnetID.String()),
+	// 	zap.Uint64("txFee", txFee),
+	// 	zap.Time("start", start),
+	// 	zap.Time("end", end),
+	// 	zap.Uint64("weight", weight),
+	// )
+	// ins, returnedOuts, _, signers, err := pc.stake(k, txFee)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// signers = append(signers, subnetSigners)
 
-	utx := &platformvm.UnsignedAddSubnetValidatorTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.networkID,
-			BlockchainID: pc.pChainID,
-			Ins:          ins,
-			Outs:         returnedOuts,
-		}},
-		Validator: platformvm.SubnetValidator{
-			Validator: platformvm.Validator{
-				NodeID: nodeID,
-				Start:  uint64(start.Unix()),
-				End:    uint64(end.Unix()),
-				Wght:   weight,
-			},
-			Subnet: subnetID,
-		},
-		SubnetAuth: subnetAuth,
-	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
-	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
-		return 0, err
-	}
-	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.networkID,
-		ChainID:   pc.pChainID,
-	}); err != nil {
-		return 0, err
-	}
-	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
-	if err != nil {
-		return 0, fmt.Errorf("failed to issue tx: %w", err)
-	}
+	// utx := &platformvm.UnsignedAddSubnetValidatorTx{
+	// 	BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	// 		NetworkID:    pc.networkID,
+	// 		BlockchainID: pc.pChainID,
+	// 		Ins:          ins,
+	// 		Outs:         returnedOuts,
+	// 	}},
+	// 	Validator: platformvm.SubnetValidator{
+	// 		Validator: platformvm.Validator{
+	// 			NodeID: nodeID,
+	// 			Start:  uint64(start.Unix()),
+	// 			End:    uint64(end.Unix()),
+	// 			Wght:   weight,
+	// 		},
+	// 		Subnet: subnetID,
+	// 	},
+	// 	SubnetAuth: subnetAuth,
+	// }
+	// pTx := &platformvm.Tx{
+	// 	UnsignedTx: utx,
+	// }
+	// if err := pTx.Sign(pCodecManager, signers); err != nil {
+	// 	return 0, err
+	// }
+	// if err := utx.SyntacticVerify(&snow.Context{
+	// 	NetworkID: pc.networkID,
+	// 	ChainID:   pc.pChainID,
+	// }); err != nil {
+	// 	return 0, err
+	// }
+	// txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
+	// if err != nil {
+	// 	return 0, fmt.Errorf("failed to issue tx: %w", err)
+	// }
 
-	return pc.checker.PollTx(ctx, txID, status.Committed)
+	// return pc.checker.PollTx(ctx, txID, status.Committed)
 }
 
 // ref. "platformvm.VM.newAddValidatorTx".
 func (pc *p) AddValidator(
 	ctx context.Context,
-	k key.Key,
+	l *ledger.Ledger,
 	nodeID ids.ShortID,
 	start time.Time,
 	end time.Time,
 	opts ...OpOption,
 ) (took time.Duration, err error) {
+	fullAddr, addr := ledgerAddress(l)
 	ret := &Op{}
 	ret.applyOpts(opts)
 
@@ -389,13 +531,13 @@ func (pc *p) AddValidator(
 		)
 	}
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = addr
 		zap.L().Warn("reward address not set, default to self",
 			zap.String("rewardAddress", ret.rewardAddr.String()),
 		)
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = addr
 		zap.L().Warn("change address not set",
 			zap.String("changeAddress", ret.changeAddr.String()),
 		)
@@ -412,8 +554,9 @@ func (pc *p) AddValidator(
 	// ref. https://docs.avax.network/learn/platform-overview/transaction-fees/#fee-schedule
 	addStakerTxFee := uint64(0)
 
-	ins, returnedOuts, stakedOuts, signers, err := pc.stake(
-		k,
+	ins, returnedOuts, stakedOuts, err := pc.stake(
+		fullAddr,
+		addr,
 		addStakerTxFee,
 		WithStakeAmount(ret.stakeAmt),
 		WithRewardAddress(ret.rewardAddr),
@@ -448,7 +591,7 @@ func (pc *p) AddValidator(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := ledgerSignTx(pTx, len(ins), pCodecManager, l); err != nil {
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -475,83 +618,85 @@ func (pc *p) CreateBlockchain(
 	vmGenesis []byte,
 	opts ...OpOption,
 ) (blkChainID ids.ID, took time.Duration, err error) {
-	ret := &Op{}
-	ret.applyOpts(opts)
+	panic("blah")
+	// ret := &Op{}
+	// ret.applyOpts(opts)
 
-	if subnetID == ids.Empty {
-		return ids.Empty, 0, ErrEmptyID
-	}
-	if vmID == ids.Empty {
-		return ids.Empty, 0, ErrEmptyID
-	}
+	// if subnetID == ids.Empty {
+	// 	return ids.Empty, 0, ErrEmptyID
+	// }
+	// if vmID == ids.Empty {
+	// 	return ids.Empty, 0, ErrEmptyID
+	// }
 
-	fi, err := pc.info.GetTxFee(ctx)
-	if err != nil {
-		return ids.Empty, 0, err
-	}
-	createBlkChainTxFee := uint64(fi.CreateBlockchainTxFee)
+	// fi, err := pc.info.GetTxFee(ctx)
+	// if err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// createBlkChainTxFee := uint64(fi.CreateBlockchainTxFee)
 
-	now := time.Now()
-	zap.L().Info("creating blockchain",
-		zap.String("subnetId", subnetID.String()),
-		zap.String("chainName", chainName),
-		zap.String("vmId", vmID.String()),
-		zap.Uint64("createBlockchainTxFee", createBlkChainTxFee),
-	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createBlkChainTxFee)
-	if err != nil {
-		return ids.Empty, 0, err
-	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
-	if err != nil {
-		return ids.Empty, 0, err
-	}
-	signers = append(signers, subnetSigners)
+	// now := time.Now()
+	// zap.L().Info("creating blockchain",
+	// 	zap.String("subnetId", subnetID.String()),
+	// 	zap.String("chainName", chainName),
+	// 	zap.String("vmId", vmID.String()),
+	// 	zap.Uint64("createBlockchainTxFee", createBlkChainTxFee),
+	// )
+	// panic("not implemented")
+	// ins, returnedOuts, _, signers, err := pc.stake(k, createBlkChainTxFee)
+	// if err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	// if err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// signers = append(signers, subnetSigners)
 
-	utx := &platformvm.UnsignedCreateChainTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    pc.networkID,
-			BlockchainID: pc.pChainID,
-			Ins:          ins,
-			Outs:         returnedOuts,
-		}},
-		SubnetID:    subnetID,
-		ChainName:   chainName,
-		VMID:        vmID,
-		FxIDs:       nil,
-		GenesisData: vmGenesis,
-		SubnetAuth:  subnetAuth,
-	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
-	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
-		return ids.Empty, 0, err
-	}
-	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.networkID,
-		ChainID:   pc.pChainID,
-	}); err != nil {
-		return ids.Empty, 0, err
-	}
-	blkChainID, err = pc.cli.IssueTx(ctx, pTx.Bytes())
-	if err != nil {
-		return ids.Empty, 0, fmt.Errorf("failed to issue tx: %w", err)
-	}
+	// utx := &platformvm.UnsignedCreateChainTx{
+	// 	BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	// 		NetworkID:    pc.networkID,
+	// 		BlockchainID: pc.pChainID,
+	// 		Ins:          ins,
+	// 		Outs:         returnedOuts,
+	// 	}},
+	// 	SubnetID:    subnetID,
+	// 	ChainName:   chainName,
+	// 	VMID:        vmID,
+	// 	FxIDs:       nil,
+	// 	GenesisData: vmGenesis,
+	// 	SubnetAuth:  subnetAuth,
+	// }
+	// pTx := &platformvm.Tx{
+	// 	UnsignedTx: utx,
+	// }
+	// if err := pTx.Sign(pCodecManager, signers); err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// if err := utx.SyntacticVerify(&snow.Context{
+	// 	NetworkID: pc.networkID,
+	// 	ChainID:   pc.pChainID,
+	// }); err != nil {
+	// 	return ids.Empty, 0, err
+	// }
+	// blkChainID, err = pc.cli.IssueTx(ctx, pTx.Bytes())
+	// if err != nil {
+	// 	return ids.Empty, 0, fmt.Errorf("failed to issue tx: %w", err)
+	// }
 
-	took = time.Since(now)
-	if ret.poll {
-		var bTook time.Duration
-		bTook, err = pc.checker.PollBlockchain(
-			ctx,
-			internal_platformvm.WithSubnetID(subnetID),
-			internal_platformvm.WithBlockchainID(blkChainID),
-			internal_platformvm.WithBlockchainStatus(status.Validating),
-			internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
-		)
-		took += bTook
-	}
-	return blkChainID, took, err
+	// took = time.Since(now)
+	// if ret.poll {
+	// 	var bTook time.Duration
+	// 	bTook, err = pc.checker.PollBlockchain(
+	// 		ctx,
+	// 		internal_platformvm.WithSubnetID(subnetID),
+	// 		internal_platformvm.WithBlockchainID(blkChainID),
+	// 		internal_platformvm.WithBlockchainStatus(status.Validating),
+	// 		internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
+	// 	)
+	// 	took += bTook
+	// }
+	// return blkChainID, took, err
 }
 
 type Op struct {
@@ -609,25 +754,24 @@ func WithPoll(b bool) OpOption {
 }
 
 // ref. "platformvm.VM.stake".
-func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
+func (pc *p) stake(fullAddr string, addr ids.ShortID, fee uint64, opts ...OpOption) (
 	ins []*avax.TransferableInput,
 	returnedOuts []*avax.TransferableOutput,
 	stakedOuts []*avax.TransferableOutput,
-	signers [][]*crypto.PrivateKeySECP256K1R,
 	err error,
 ) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = addr
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = addr
 	}
 
-	ubs, _, err := pc.cli.GetAtomicUTXOs(context.Background(), []string{k.P()}, "", 100, "", "")
+	ubs, _, err := pc.cli.GetAtomicUTXOs(context.Background(), []string{fullAddr}, "", 100, "", "")
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	now := uint64(time.Now().Unix())
@@ -635,13 +779,12 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 	ins = make([]*avax.TransferableInput, 0)
 	returnedOuts = make([]*avax.TransferableOutput, 0)
 	stakedOuts = make([]*avax.TransferableOutput, 0)
-	signers = make([][]*crypto.PrivateKeySECP256K1R, 0)
 
 	utxos := make([]*avax.UTXO, len(ubs))
 	for i, ub := range ubs {
 		utxos[i], err = internal_avax.ParseUTXO(ub, pCodecManager)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -676,7 +819,7 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 			continue
 		}
 
-		_, inputs, inputSigners := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
+		_, inputs := ledgerManagerSpends(addr, []*avax.UTXO{utxo}, key.WithTime(now))
 		if len(inputs) == 0 {
 			// cannot spend this UTXO, skip to try next one
 			continue
@@ -725,7 +868,6 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 
 		// add the input to the consumed inputs
 		ins = append(ins, in)
-		signers = append(signers, inputSigners...)
 	}
 
 	// amount of AVAX that has been burned
@@ -752,7 +894,7 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 			}
 			utxo.Out = inner.TransferableOut
 		}
-		_, inputs, inputSigners := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
+		_, inputs := ledgerManagerSpends(addr, []*avax.UTXO{utxo}, key.WithTime(now))
 		if len(inputs) == 0 {
 			// cannot spend this UTXO, skip to try next one
 			continue
@@ -812,21 +954,20 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 
 		// add the input to the consumed inputs
 		ins = append(ins, in)
-		signers = append(signers, inputSigners...)
 	}
 
 	if amountStaked > 0 && amountStaked < ret.stakeAmt {
-		return nil, nil, nil, nil, ErrInsufficientBalanceForStakeAmount
+		return nil, nil, nil, ErrInsufficientBalanceForStakeAmount
 	}
 	if amountBurned > 0 && amountBurned < fee {
-		return nil, nil, nil, nil, ErrInsufficientBalanceForGasFee
+		return nil, nil, nil, ErrInsufficientBalanceForGasFee
 	}
 
-	avax.SortTransferableInputsWithSigners(ins, signers)      // sort inputs and keys
+	avax.SortTransferableInputs(ins)                          // sort inputs and keys
 	avax.SortTransferableOutputs(returnedOuts, pCodecManager) // sort outputs
 	avax.SortTransferableOutputs(stakedOuts, pCodecManager)   // sort outputs
 
-	return ins, returnedOuts, stakedOuts, signers, nil
+	return ins, returnedOuts, stakedOuts, nil
 }
 
 // ref. "platformvm.VM.authorize".

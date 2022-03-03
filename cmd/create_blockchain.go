@@ -113,7 +113,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0
-	info.balance, err = cli.P().Balance(info.key)
+	info.balance, err = cli.P().Balance(info.key.P())
 	if err != nil {
 		return err
 	}

@@ -34,9 +34,9 @@ var (
 	ErrInvalidPrivateKeyEncoding = errors.New("invalid private key encoding")
 )
 
-var _ Key = &SKey{}
+var _ Key = &SoftKey{}
 
-type SKey struct {
+type SoftKey struct {
 	hrp string
 
 	privKey        *crypto.PrivateKeySECP256K1R
@@ -71,21 +71,21 @@ func (sop *SOp) applyOpts(opts []SOpOption) {
 	}
 }
 
-// To create a new key SKey with a pre-loaded private key.
+// To create a new key SoftKey with a pre-loaded private key.
 func WithPrivateKey(privKey *crypto.PrivateKeySECP256K1R) SOpOption {
 	return func(sop *SOp) {
 		sop.privKey = privKey
 	}
 }
 
-// To create a new key SKey with a pre-defined private key.
+// To create a new key SoftKey with a pre-defined private key.
 func WithPrivateKeyEncoded(privKey string) SOpOption {
 	return func(sop *SOp) {
 		sop.privKeyEncoded = privKey
 	}
 }
 
-func New(networkID uint32, name string, opts ...SOpOption) (*SKey, error) {
+func New(networkID uint32, name string, opts ...SOpOption) (*SoftKey, error) {
 	ret := &SOp{}
 	ret.applyOpts(opts)
 
@@ -131,7 +131,7 @@ func New(networkID uint32, name string, opts ...SOpOption) (*SKey, error) {
 	keyChain := secp256k1fx.NewKeychain()
 	keyChain.Add(privKey)
 
-	m := &SKey{
+	m := &SoftKey{
 		privKey:        privKey,
 		privKeyRaw:     privKey.Bytes(),
 		privKeyEncoded: privKeyEncoded,
@@ -162,29 +162,29 @@ func getHRP(networkID uint32) string {
 }
 
 // Returns the private key.
-func (m *SKey) Key() *crypto.PrivateKeySECP256K1R {
+func (m *SoftKey) Key() *crypto.PrivateKeySECP256K1R {
 	return m.privKey
 }
 
 // Returns the private key in raw bytes.
-func (m *SKey) Raw() []byte {
+func (m *SoftKey) Raw() []byte {
 	return m.privKeyRaw
 }
 
 // Returns the private key encoded in CB58 and "PrivateKey-" prefix.
-func (m *SKey) Encode() string {
+func (m *SoftKey) Encode() string {
 	return m.privKeyEncoded
 }
 
 // Saves the private key to disk with hex encoding.
-func (m *SKey) Save(p string) error {
+func (m *SoftKey) Save(p string) error {
 	k := hex.EncodeToString(m.privKeyRaw)
 	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
 }
 
-func (m *SKey) P() string { return m.pAddr }
+func (m *SoftKey) P() string { return m.pAddr }
 
-func (m *SKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
+func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
 	inputs []*avax.TransferableInput,
 ) {
@@ -213,7 +213,7 @@ func (m *SKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	return totalBalanceToSpend, inputs
 }
 
-func (m *SKey) spend(output *avax.UTXO, time uint64) (
+func (m *SoftKey) spend(output *avax.UTXO, time uint64) (
 	input avax.TransferableIn,
 	err error,
 ) {
@@ -233,8 +233,8 @@ func (m *SKey) spend(output *avax.UTXO, time uint64) (
 
 const fsModeWrite = 0o600
 
-// Loads the private key from disk and creates the corresponding SKey.
-func Load(networkID uint32, keyPath string) (*SKey, error) {
+// Loads the private key from disk and creates the corresponding SoftKey.
+func Load(networkID uint32, keyPath string) (*SoftKey, error) {
 	kb, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
@@ -335,7 +335,7 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 	return privKey, nil
 }
 
-func (m *SKey) updateAddr() (err error) {
+func (m *SoftKey) updateAddr() (err error) {
 	pubBytes := m.privKey.PublicKey().Address().Bytes()
 	m.pAddr, err = formatting.FormatAddress("P", m.hrp, pubBytes)
 	if err != nil {
@@ -344,11 +344,11 @@ func (m *SKey) updateAddr() (err error) {
 	return nil
 }
 
-func (m *SKey) Address() ids.ShortID {
+func (m *SoftKey) Address() ids.ShortID {
 	return m.privKey.PublicKey().Address()
 }
 
-func (m *SKey) Sign(pTx *platformvm.Tx, sigs int) error {
+func (m *SoftKey) Sign(pTx *platformvm.Tx, sigs int) error {
 	signers := make([][]*crypto.PrivateKeySECP256K1R, sigs)
 	for i := 0; i < sigs; i++ {
 		signers[i] = []*crypto.PrivateKeySECP256K1R{m.privKey}

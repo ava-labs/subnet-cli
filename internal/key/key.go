@@ -35,6 +35,7 @@ type Spender interface {
 		inputs []*avax.TransferableInput,
 	)
 
+	// Sign applies [sigs] signatures to the provied [pTx].
 	Sign(pTx *platformvm.Tx, sigs int) error
 }
 

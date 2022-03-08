@@ -24,9 +24,6 @@ import (
 )
 
 var (
-	ErrInvalidType = errors.New("invalid type")
-
-	// ErrInvalidPrivateKey is returned when specified privates are invalid.
 	ErrInvalidPrivateKey         = errors.New("invalid private key")
 	ErrInvalidPrivateKeyLen      = errors.New("invalid private key length (expect 64 bytes in hex)")
 	ErrInvalidPrivateKeyEnding   = errors.New("invalid private key ending")

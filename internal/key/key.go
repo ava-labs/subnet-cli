@@ -5,10 +5,17 @@
 package key
 
 import (
+	"errors"
+
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+)
+
+var (
+	ErrInvalidType = errors.New("invalid type")
+	ErrCantSpend   = errors.New("can't spend")
 )
 
 // Key defines methods for key manager interface.

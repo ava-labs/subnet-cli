@@ -4,7 +4,6 @@
 package key
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/ava-labs/subnet-cli/internal/codec"
@@ -105,7 +104,7 @@ func (h *HardKey) spend(output *avax.UTXO, time uint64) (
 	var ok bool
 	input, ok = inputf.(avax.TransferableIn)
 	if !ok {
-		return nil, errors.New("invalid type")
+		return nil, ErrInvalidType
 	}
 	return input, nil
 }
@@ -119,7 +118,7 @@ func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable,
 				SigIndices: sigIndices,
 			}, nil
 		}
-		return nil, errors.New("can't spend")
+		return nil, ErrCantSpend
 	case *secp256k1fx.TransferOutput:
 		if sigIndices, able := h.match(&out.OutputOwners, time); able {
 			return &secp256k1fx.TransferInput{
@@ -129,7 +128,7 @@ func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable,
 				},
 			}, nil
 		}
-		return nil, errors.New("can't spend")
+		return nil, ErrCantSpend
 	}
 	return nil, fmt.Errorf("can't spend UTXO because it is unexpected type %T", out)
 }

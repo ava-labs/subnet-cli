@@ -14,7 +14,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/math"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -22,6 +21,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	internal_avax "github.com/ava-labs/subnet-cli/internal/avax"
+	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"go.uber.org/zap"
@@ -128,7 +128,7 @@ func (pc *p) CreateSubnet(
 		zap.String("assetId", pc.assetID.String()),
 		zap.Uint64("createSubnetTxFee", createSubnetTxFee),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createSubnetTxFee)
+	ins, returnedOuts, _, err := pc.stake(k, createSubnetTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -146,13 +146,13 @@ func (pc *p) CreateSubnet(
 
 			// address to send change to, if there is any,
 			// control addresses for the new subnet
-			Addrs: []ids.ShortID{k.Key().PublicKey().Address()},
+			Addrs: []ids.ShortID{k.Address()},
 		},
 	}
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, len(ins)); err != nil {
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -298,15 +298,14 @@ func (pc *p) AddSubnetValidator(
 		zap.Time("end", end),
 		zap.Uint64("weight", weight),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, txFee)
+	ins, returnedOuts, _, err := pc.stake(k, txFee)
 	if err != nil {
 		return 0, err
 	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	subnetAuth, err := pc.authorize(k, subnetID)
 	if err != nil {
 		return 0, err
 	}
-	signers = append(signers, subnetSigners)
 
 	utx := &platformvm.UnsignedAddSubnetValidatorTx{
 		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
@@ -329,7 +328,7 @@ func (pc *p) AddSubnetValidator(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, len(ins)+1); err != nil {
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -385,13 +384,13 @@ func (pc *p) AddValidator(
 		)
 	}
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = k.Address()
 		zap.L().Warn("reward address not set, default to self",
 			zap.String("rewardAddress", ret.rewardAddr.String()),
 		)
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = k.Address()
 		zap.L().Warn("change address not set",
 			zap.String("changeAddress", ret.changeAddr.String()),
 		)
@@ -408,7 +407,7 @@ func (pc *p) AddValidator(
 	// ref. https://docs.avax.network/learn/platform-overview/transaction-fees/#fee-schedule
 	addStakerTxFee := uint64(0)
 
-	ins, returnedOuts, stakedOuts, signers, err := pc.stake(
+	ins, returnedOuts, stakedOuts, err := pc.stake(
 		k,
 		addStakerTxFee,
 		WithStakeAmount(ret.stakeAmt),
@@ -444,7 +443,7 @@ func (pc *p) AddValidator(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, len(ins)); err != nil {
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -494,15 +493,14 @@ func (pc *p) CreateBlockchain(
 		zap.String("vmId", vmID.String()),
 		zap.Uint64("createBlockchainTxFee", createBlkChainTxFee),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createBlkChainTxFee)
+	ins, returnedOuts, _, err := pc.stake(k, createBlkChainTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	subnetAuth, err := pc.authorize(k, subnetID)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
-	signers = append(signers, subnetSigners)
 
 	utx := &platformvm.UnsignedCreateChainTx{
 		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
@@ -521,7 +519,7 @@ func (pc *p) CreateBlockchain(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, len(ins)+1); err != nil {
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -609,21 +607,20 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 	ins []*avax.TransferableInput,
 	returnedOuts []*avax.TransferableOutput,
 	stakedOuts []*avax.TransferableOutput,
-	signers [][]*crypto.PrivateKeySECP256K1R,
 	err error,
 ) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = k.Address()
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = k.Address()
 	}
 
 	ubs, _, err := pc.cli.GetAtomicUTXOs([]string{k.P()}, "", 100, "", "")
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	now := uint64(time.Now().Unix())
@@ -631,13 +628,12 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 	ins = make([]*avax.TransferableInput, 0)
 	returnedOuts = make([]*avax.TransferableOutput, 0)
 	stakedOuts = make([]*avax.TransferableOutput, 0)
-	signers = make([][]*crypto.PrivateKeySECP256K1R, 0)
 
 	utxos := make([]*avax.UTXO, len(ubs))
 	for i, ub := range ubs {
-		utxos[i], err = internal_avax.ParseUTXO(ub, pCodecManager)
+		utxos[i], err = internal_avax.ParseUTXO(ub, codec.PCodecManager)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -672,7 +668,7 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 			continue
 		}
 
-		_, inputs, inputSigners := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
+		_, inputs := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
 		if len(inputs) == 0 {
 			// cannot spend this UTXO, skip to try next one
 			continue
@@ -721,7 +717,6 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 
 		// add the input to the consumed inputs
 		ins = append(ins, in)
-		signers = append(signers, inputSigners...)
 	}
 
 	// amount of AVAX that has been burned
@@ -748,7 +743,7 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 			}
 			utxo.Out = inner.TransferableOut
 		}
-		_, inputs, inputSigners := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
+		_, inputs := k.Spends([]*avax.UTXO{utxo}, key.WithTime(now))
 		if len(inputs) == 0 {
 			// cannot spend this UTXO, skip to try next one
 			continue
@@ -808,54 +803,49 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 
 		// add the input to the consumed inputs
 		ins = append(ins, in)
-		signers = append(signers, inputSigners...)
 	}
 
 	if amountStaked > 0 && amountStaked < ret.stakeAmt {
-		return nil, nil, nil, nil, ErrInsufficientBalanceForStakeAmount
+		return nil, nil, nil, ErrInsufficientBalanceForStakeAmount
 	}
 	if amountBurned > 0 && amountBurned < fee {
-		return nil, nil, nil, nil, ErrInsufficientBalanceForGasFee
+		return nil, nil, nil, ErrInsufficientBalanceForGasFee
 	}
 
-	avax.SortTransferableInputsWithSigners(ins, signers)      // sort inputs and keys
-	avax.SortTransferableOutputs(returnedOuts, pCodecManager) // sort outputs
-	avax.SortTransferableOutputs(stakedOuts, pCodecManager)   // sort outputs
+	avax.SortTransferableInputs(ins)                                // sort inputs
+	avax.SortTransferableOutputs(returnedOuts, codec.PCodecManager) // sort outputs
+	avax.SortTransferableOutputs(stakedOuts, codec.PCodecManager)   // sort outputs
 
-	return ins, returnedOuts, stakedOuts, signers, nil
+	return ins, returnedOuts, stakedOuts, nil
 }
 
 // ref. "platformvm.VM.authorize".
 func (pc *p) authorize(k key.Key, subnetID ids.ID) (
 	auth verify.Verifiable, // input that names owners
-	signers []*crypto.PrivateKeySECP256K1R, // keys that prove ownership
 	err error,
 ) {
 	tb, err := pc.cli.GetTx(subnetID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tx := new(platformvm.Tx)
-	if _, err = pCodecManager.Unmarshal(tb, tx); err != nil {
-		return nil, nil, err
+	if _, err = codec.PCodecManager.Unmarshal(tb, tx); err != nil {
+		return nil, err
 	}
 
 	subnetTx, ok := tx.UnsignedTx.(*platformvm.UnsignedCreateSubnetTx)
 	if !ok {
-		return nil, nil, ErrWrongTxType
+		return nil, ErrWrongTxType
 	}
 
 	owner, ok := subnetTx.Owner.(*secp256k1fx.OutputOwners)
 	if !ok {
-		return nil, nil, ErrUnknownOwners
+		return nil, ErrUnknownOwners
 	}
 
-	kc := secp256k1fx.NewKeychain(k.Key())
-	now := uint64(time.Now().Unix())
-	indices, signers, ok := kc.Match(owner, now)
-	if !ok {
-		return nil, nil, ErrCantSign
+	if len(owner.Addrs) != 1 || owner.Addrs[0] != k.Address() {
+		return nil, ErrCantSign
 	}
-	return &secp256k1fx.Input{SigIndices: indices}, signers, nil
+	return &secp256k1fx.Input{SigIndices: []uint32{0}}, nil
 }

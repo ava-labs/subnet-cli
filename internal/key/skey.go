@@ -12,10 +12,14 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/ava-labs/subnet-cli/internal/codec"
+
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"go.uber.org/zap"
 )
@@ -338,4 +342,17 @@ func (m *SKey) updateAddr() (err error) {
 		return err
 	}
 	return nil
+}
+
+func (m *SKey) Address() ids.ShortID {
+	return m.privKey.PublicKey().Address()
+}
+
+func (m *SKey) Sign(pTx *platformvm.Tx, sigs int) error {
+	signers := make([][]*crypto.PrivateKeySECP256K1R, sigs)
+	for i := 0; i < sigs; i++ {
+		signers[i] = []*crypto.PrivateKeySECP256K1R{m.privKey}
+	}
+
+	return pTx.Sign(codec.PCodecManager, signers)
 }

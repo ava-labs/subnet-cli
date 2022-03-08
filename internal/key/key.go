@@ -5,7 +5,9 @@
 package key
 
 import (
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
 )
 
 // Key defines methods for key manager interface.
@@ -15,8 +17,11 @@ type Key interface {
 }
 
 type Addresser interface {
-	// P returns the P-Chain address.
+	// P returns the formatted P-Chain address.
 	P() string
+
+	// Address returns the raw ids.ShortID address.
+	Address() ids.ShortID
 }
 
 type Spender interface {
@@ -29,6 +34,8 @@ type Spender interface {
 		totalBalanceToSpend uint64,
 		inputs []*avax.TransferableInput,
 	)
+
+	Sign(pTx *platformvm.Tx, sigs int) error
 }
 
 type Op struct {

@@ -1,7 +1,7 @@
 // Copyright (C) 2019-2022, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package client
+package codec
 
 import (
 	"github.com/ava-labs/avalanchego/codec"
@@ -11,11 +11,11 @@ import (
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
-var pCodecManager codec.Manager
+var PCodecManager codec.Manager
 
 func init() {
 	pc := linearcodec.NewDefault()
-	pCodecManager = codec.NewDefaultManager()
+	PCodecManager = codec.NewDefaultManager()
 	errs := wrappers.Errs{}
 	errs.Add(
 		pc.RegisterType(&platformvm.ProposalBlock{}),
@@ -41,7 +41,7 @@ func init() {
 		pc.RegisterType(&platformvm.UnsignedRewardValidatorTx{}),
 		pc.RegisterType(&platformvm.StakeableLockIn{}),
 		pc.RegisterType(&platformvm.StakeableLockOut{}),
-		pCodecManager.RegisterCodec(0, pc),
+		PCodecManager.RegisterCodec(0, pc),
 	)
 	if errs.Errored() {
 		panic(errs.Err)

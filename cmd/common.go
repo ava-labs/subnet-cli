@@ -95,6 +95,9 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 
 	if !useLedger {
 		info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
+		if err != nil {
+			return nil, nil, err
+		}
 		info.balance, err = cli.P().Balance(context.TODO(), info.key)
 		if err != nil {
 			return nil, nil, err

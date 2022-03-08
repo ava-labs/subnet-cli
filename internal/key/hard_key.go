@@ -116,7 +116,7 @@ func (h *HardKey) spend(output *avax.UTXO, time uint64) (
 	return input, nil
 }
 
-// Spend attempts to create an input
+// Spend attempts to create an input.
 func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable, error) {
 	switch out := out.(type) {
 	case *secp256k1fx.MintOutput:
@@ -140,7 +140,7 @@ func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable,
 	return nil, fmt.Errorf("can't spend UTXO because it is unexpected type %T", out)
 }
 
-// Match attempts to match a list of addresses up to the provided threshold
+// Match attempts to match a list of addresses up to the provided threshold.
 func (h *HardKey) match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, bool) {
 	if time < owners.Locktime {
 		return nil, false

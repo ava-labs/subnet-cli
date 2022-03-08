@@ -111,12 +111,9 @@ func TestNewKey(t *testing.T) {
 		},
 	}
 	for i, tv := range tt {
-		m, err := New(fallbackNetworkID, tv.name, tv.opts...)
+		_, err := New(fallbackNetworkID, tv.name, tv.opts...)
 		if !errors.Is(err, tv.expErr) {
 			t.Fatalf("#%d: unexpected error %v, expected %v", i, err, tv.expErr)
-		}
-		if err == nil && m.Name() != tv.name {
-			t.Fatalf("#%d: unexpected name %v, expected %v", i, m.Name(), tv.name)
 		}
 	}
 }

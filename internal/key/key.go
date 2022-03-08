@@ -35,17 +35,6 @@ var (
 type Key interface {
 	Addresser
 	Spender
-
-	// Returns the name of the key.
-	Name() string
-	// Returns the private key.
-	Key() *crypto.PrivateKeySECP256K1R
-	// Returns the private key in raw bytes.
-	Raw() []byte
-	// Returns the private key encoded in CB58 and "PrivateKey-" prefix.
-	Encode() string
-	// Saves the private key to disk with hex encoding.
-	Save(p string) error
 }
 
 type Addresser interface {
@@ -62,15 +51,13 @@ type Spender interface {
 	Spends(outputs []*avax.UTXO, opts ...OpOption) (
 		totalBalanceToSpend uint64,
 		inputs []*avax.TransferableInput,
-		inputSigners [][]*crypto.PrivateKeySECP256K1R,
 	)
 }
 
-var _ Key = &manager{}
+var _ Key = &smanager{}
 
-type manager struct {
-	hrp  string
-	name string
+type smanager struct {
+	hrp string
 
 	privKey        *crypto.PrivateKeySECP256K1R
 	privKeyRaw     []byte
@@ -91,7 +78,7 @@ const (
 
 var keyFactory = new(crypto.FactorySECP256K1R)
 
-func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
+func New(networkID uint32, name string, opts ...OpOption) (SKey, error) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
@@ -137,9 +124,7 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	keyChain := secp256k1fx.NewKeychain()
 	keyChain.Add(privKey)
 
-	m := &manager{
-		name: name,
-
+	m := &smanager{
 		privKey:        privKey,
 		privKeyRaw:     privKey.Bytes(),
 		privKeyEncoded: privKeyEncoded,
@@ -148,16 +133,7 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	}
 
 	// Parse HRP to create valid address
-	switch networkID {
-	case constants.LocalID:
-		m.hrp = constants.LocalHRP
-	case constants.FujiID:
-		m.hrp = constants.FujiHRP
-	case constants.MainnetID:
-		m.hrp = constants.MainnetHRP
-	default:
-		m.hrp = constants.FallbackHRP
-	}
+	m.hrp = getHRP(networkID)
 
 	if err := m.updateAddr(); err != nil {
 		return nil, err
@@ -165,34 +141,51 @@ func New(networkID uint32, name string, opts ...OpOption) (Key, error) {
 	return m, nil
 }
 
-func (m *manager) Name() string {
-	return m.name
+func getHRP(networkID uint32) string {
+	switch networkID {
+	case constants.LocalID:
+		return constants.LocalHRP
+	case constants.FujiID:
+		return constants.FujiHRP
+	case constants.MainnetID:
+		return constants.MainnetHRP
+	default:
+		return constants.FallbackHRP
+	}
 }
 
-func (m *manager) Key() *crypto.PrivateKeySECP256K1R {
+// Returns the private key.
+func (m *smanager) Key() *crypto.PrivateKeySECP256K1R {
 	return m.privKey
 }
 
-func (m *manager) Raw() []byte {
+// Returns the private key in raw bytes.
+func (m *smanager) Raw() []byte {
 	return m.privKeyRaw
 }
 
-func (m *manager) Encode() string {
+// Returns the private key encoded in CB58 and "PrivateKey-" prefix.
+func (m *smanager) Encode() string {
 	return m.privKeyEncoded
 }
 
-func (m *manager) P() string { return m.pAddr }
+// Saves the private key to disk with hex encoding.
+func (m *smanager) Save(p string) error {
+	k := hex.EncodeToString(m.privKeyRaw)
+	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
+}
 
-func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
+func (m *smanager) P() string { return m.pAddr }
+
+func (m *smanager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
 	inputs []*avax.TransferableInput,
-	inputSigners [][]*crypto.PrivateKeySECP256K1R,
 ) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
 	for _, out := range outputs {
-		input, signers, err := m.spend(out, ret.time)
+		input, err := m.spend(out, ret.time)
 		if err != nil {
 			zap.L().Warn("cannot spend with current key", zap.Error(err))
 			continue
@@ -203,45 +196,38 @@ func (m *manager) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 			Asset:  out.Asset,
 			In:     input,
 		})
-		inputSigners = append(inputSigners, signers)
 		if ret.targetAmount > 0 &&
 			totalBalanceToSpend > ret.targetAmount+ret.feeDeduct {
 			break
 		}
 	}
-	avax.SortTransferableInputsWithSigners(inputs, inputSigners)
+	avax.SortTransferableInputs(inputs)
 
-	return totalBalanceToSpend, inputs, inputSigners
+	return totalBalanceToSpend, inputs
 }
 
-func (m *manager) spend(output *avax.UTXO, time uint64) (
+func (m *smanager) spend(output *avax.UTXO, time uint64) (
 	input avax.TransferableIn,
-	inputSigners []*crypto.PrivateKeySECP256K1R,
 	err error,
 ) {
 	// "time" is used to check whether the key owner
 	// is still within the lock time (thus can't spend).
-	inputf, inputSigners, err := m.keyChain.Spend(output.Out, time)
+	inputf, _, err := m.keyChain.Spend(output.Out, time)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var ok bool
 	input, ok = inputf.(avax.TransferableIn)
 	if !ok {
-		return nil, nil, ErrInvalidType
+		return nil, ErrInvalidType
 	}
-	return input, inputSigners, nil
+	return input, nil
 }
 
 const fsModeWrite = 0o600
 
-func (m *manager) Save(p string) error {
-	k := hex.EncodeToString(m.privKeyRaw)
-	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
-}
-
-// Loads the private key from disk and creates the corresponding manager.
-func Load(networkID uint32, keyPath string) (Key, error) {
+// Loads the private key from disk and creates the corresponding smanager.
+func Load(networkID uint32, keyPath string) (SKey, error) {
 	kb, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
@@ -342,7 +328,7 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 	return privKey, nil
 }
 
-func (m *manager) updateAddr() (err error) {
+func (m *smanager) updateAddr() (err error) {
 	pubBytes := m.privKey.PublicKey().Address().Bytes()
 	m.pAddr, err = formatting.FormatAddress("P", m.hrp, pubBytes)
 	if err != nil {
@@ -368,14 +354,14 @@ func (op *Op) applyOpts(opts []OpOption) {
 	}
 }
 
-// To create a new key manager with a pre-loaded private key.
+// To create a new key smanager with a pre-loaded private key.
 func WithPrivateKey(privKey *crypto.PrivateKeySECP256K1R) OpOption {
 	return func(op *Op) {
 		op.privKey = privKey
 	}
 }
 
-// To create a new key manager with a pre-defined private key.
+// To create a new key smanager with a pre-defined private key.
 func WithPrivateKeyEncoded(privKey string) OpOption {
 	return func(op *Op) {
 		op.privKeyEncoded = privKey

@@ -15,7 +15,6 @@ import (
 	"github.com/ava-labs/subnet-cli/internal/codec"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
@@ -148,19 +147,6 @@ func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 	return m, nil
 }
 
-func getHRP(networkID uint32) string {
-	switch networkID {
-	case constants.LocalID:
-		return constants.LocalHRP
-	case constants.FujiID:
-		return constants.FujiHRP
-	case constants.MainnetID:
-		return constants.MainnetHRP
-	default:
-		return constants.FallbackHRP
-	}
-}
-
 // Returns the private key.
 func (m *SoftKey) Key() *crypto.PrivateKeySECP256K1R {
 	return m.privKey
@@ -233,8 +219,8 @@ func (m *SoftKey) spend(output *avax.UTXO, time uint64) (
 
 const fsModeWrite = 0o600
 
-// Loads the private key from disk and creates the corresponding SoftKey.
-func Load(networkID uint32, keyPath string) (*SoftKey, error) {
+// LoadSoft loads the private key from disk and creates the corresponding SoftKey.
+func LoadSoft(networkID uint32, keyPath string) (*SoftKey, error) {
 	kb, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err

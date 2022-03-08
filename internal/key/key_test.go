@@ -38,7 +38,7 @@ func TestNewKeyEwoq(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m2, err := Load(fallbackNetworkID, keyPath)
+	m2, err := LoadSoft(fallbackNetworkID, keyPath)
 	if err != nil {
 		t.Fatal(err)
 	}

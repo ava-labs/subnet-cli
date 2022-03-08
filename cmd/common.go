@@ -91,7 +91,7 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	info.key, err = key.Load(cli.NetworkID(), privKeyPath)
+	info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
 	if err != nil {
 		return nil, nil, err
 	}

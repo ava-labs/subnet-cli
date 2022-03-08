@@ -31,7 +31,7 @@ func createKeyFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{red}}key already found at %q{{/}}\n", privKeyPath)
 		return os.ErrExist
 	}
-	k, err := key.New(0, "generated")
+	k, err := key.NewSoft(0)
 	if err != nil {
 		return err
 	}

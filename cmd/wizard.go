@@ -69,8 +69,8 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	info.validateWeight = defaultValidateWeight
 	info.validateRewardFeePercent = defaultValFeePercent
-	info.rewardAddr = info.key.Key().PublicKey().Address()
-	info.changeAddr = info.key.Key().PublicKey().Address()
+	info.rewardAddr = info.key.Address()
+	info.changeAddr = info.key.Address()
 	info.vmID, err = ids.FromString(vmIDs)
 	if err != nil {
 		return err

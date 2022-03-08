@@ -85,7 +85,7 @@ func WithPrivateKeyEncoded(privKey string) SOpOption {
 	}
 }
 
-func NewSoft(networkID uint32, name string, opts ...SOpOption) (*SoftKey, error) {
+func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 	ret := &SOp{}
 	ret.applyOpts(opts)
 
@@ -241,7 +241,7 @@ func Load(networkID uint32, keyPath string) (*SoftKey, error) {
 	}
 
 	// in case, it's already encoded
-	k, err := NewSoft(networkID, keyPath, WithPrivateKeyEncoded(string(kb)))
+	k, err := NewSoft(networkID, WithPrivateKeyEncoded(string(kb)))
 	if err == nil {
 		return k, nil
 	}
@@ -272,7 +272,7 @@ func Load(networkID uint32, keyPath string) (*SoftKey, error) {
 		return nil, ErrInvalidType
 	}
 
-	return NewSoft(networkID, keyPath, WithPrivateKey(privKey))
+	return NewSoft(networkID, WithPrivateKey(privKey))
 }
 
 // readASCII reads into 'buf', stopping when the buffer is full or

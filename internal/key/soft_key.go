@@ -140,10 +140,11 @@ func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 
 	// Parse HRP to create valid address
 	m.hrp = getHRP(networkID)
-
-	if err := m.updateAddr(); err != nil {
+	m.pAddr, err = formatting.FormatAddress("P", m.hrp, m.privKey.PublicKey().Address().Bytes())
+	if err != nil {
 		return nil, err
 	}
+
 	return m, nil
 }
 
@@ -319,15 +320,6 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 		return nil, ErrInvalidType
 	}
 	return privKey, nil
-}
-
-func (m *SoftKey) updateAddr() (err error) {
-	pubBytes := m.privKey.PublicKey().Address().Bytes()
-	m.pAddr, err = formatting.FormatAddress("P", m.hrp, pubBytes)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (m *SoftKey) Address() ids.ShortID {

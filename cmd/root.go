@@ -22,6 +22,7 @@ var (
 	logLevel     string
 
 	privKeyPath string
+	useLedger   bool
 
 	privateURI string
 	publicURI  string

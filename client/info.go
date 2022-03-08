@@ -21,7 +21,7 @@ func newInfo(cfg Config) *info {
 	// e.g., https://api.avax-test.network
 	// ref. https://docs.avax.network/build/avalanchego-apis/info
 	uri := cfg.u.Scheme + "://" + cfg.u.Host
-	cli := api_info.NewClient(uri, cfg.RequestTimeout)
+	cli := api_info.NewClient(uri)
 	return &info{
 		cli: cli,
 		cfg: cfg,

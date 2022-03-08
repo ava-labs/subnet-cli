@@ -91,10 +91,15 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
+	if !useLedger {
+		info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
+	} else {
+		info.key, err = key.NewHard(cli.NetworkID())
+	}
 	if err != nil {
 		return nil, nil, err
 	}
+
 	info.balance, err = cli.P().Balance(context.TODO(), info.key)
 	if err != nil {
 		return nil, nil, err

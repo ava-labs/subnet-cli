@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -66,18 +67,17 @@ type Info struct {
 
 func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	cli, err := client.New(client.Config{
-		URI:            uri,
-		PollInterval:   pollInterval,
-		RequestTimeout: requestTimeout,
+		URI:          uri,
+		PollInterval: pollInterval,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	txFee, err := cli.Info().Client().GetTxFee()
+	txFee, err := cli.Info().Client().GetTxFee(context.TODO())
 	if err != nil {
 		return nil, nil, err
 	}
-	networkName, err := cli.Info().Client().GetNetworkName()
+	networkName, err := cli.Info().Client().GetNetworkName(context.TODO())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -95,7 +95,7 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	info.balance, err = cli.P().Balance(info.key)
+	info.balance, err = cli.P().Balance(context.TODO(), info.key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,7 +171,7 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		}
 		i.allNodeIDs[idx] = nodeID
 
-		start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+		start, end, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
 		i.valInfos[nodeID] = &ValInfo{start, end}
 		switch {
 		case errors.Is(err, client.ErrValidatorNotFound):
@@ -189,7 +189,7 @@ func WaitValidator(cli client.Client, nodeIDs []ids.ShortID, i *Info) {
 	for _, nodeID := range nodeIDs {
 		color.Outf("{{yellow}}waiting for validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, i.subnetID)
 		for {
-			start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+			start, end, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
 			if err == nil {
 				if i.subnetID == ids.Empty {
 					i.valInfos[nodeID] = &ValInfo{start, end}

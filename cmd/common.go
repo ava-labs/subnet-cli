@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ava-labs/avalanchego/api/info"
@@ -15,6 +16,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
+	"github.com/manifoldco/promptui"
 	"github.com/olekukonko/tablewriter"
 	"github.com/onsi/ginkgo/v2/formatter"
 	"go.uber.org/zap"
@@ -93,18 +95,45 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 
 	if !useLedger {
 		info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
-	} else {
-		info.key, err = key.NewHard(cli.NetworkID())
-	}
-	if err != nil {
-		return nil, nil, err
+		info.balance, err = cli.P().Balance(context.TODO(), info.key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return cli, info, nil
 	}
 
-	info.balance, err = cli.P().Balance(context.TODO(), info.key)
-	if err != nil {
-		return nil, nil, err
+	for i := uint32(0); ; i++ {
+		hk, err := key.NewHard(cli.NetworkID(), i)
+		if err != nil {
+			return nil, nil, err
+		}
+		balance, err := cli.P().Balance(context.TODO(), hk)
+		if err != nil {
+			return nil, nil, err
+		}
+		curPChainDenominatedP := float64(balance) / float64(units.Avax)
+		curPChainDenominatedBalanceP := humanize.FormatFloat("#,###.#######", curPChainDenominatedP)
+		prompt := promptui.Select{
+			Label:  "\n",
+			Stdout: os.Stdout,
+			Items: []string{
+				formatter.F("{{green}}Continue with %s (%s AVAX){{/}}", hk.P(), curPChainDenominatedBalanceP),
+				formatter.F("{{red}}Try next address (idx=%d){{/}}", i+1),
+			},
+		}
+		idx, _, err := prompt.Run()
+		if err != nil {
+			return nil, nil, err
+		}
+		if idx == 0 {
+			info.key = hk
+			info.balance = balance
+			return cli, info, nil
+		}
+		if err := hk.Disconnect(); err != nil {
+			return nil, nil, err
+		}
 	}
-	return cli, info, nil
 }
 
 func CreateLogger() error {

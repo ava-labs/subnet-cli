@@ -16,7 +16,7 @@ require (
 
 require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
-	github.com/ava-labs/avalanche-ledger-go v0.0.2 // indirect
+	github.com/ava-labs/avalanche-ledger-go v0.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

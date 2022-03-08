@@ -33,8 +33,6 @@ var (
 var _ Key = &SoftKey{}
 
 type SoftKey struct {
-	hrp string
-
 	privKey        *crypto.PrivateKeySECP256K1R
 	privKeyRaw     []byte
 	privKeyEncoded string
@@ -136,8 +134,8 @@ func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 	}
 
 	// Parse HRP to create valid address
-	m.hrp = getHRP(networkID)
-	m.pAddr, err = formatting.FormatAddress("P", m.hrp, m.privKey.PublicKey().Address().Bytes())
+	hrp := getHRP(networkID)
+	m.pAddr, err = formatting.FormatAddress("P", hrp, m.privKey.PublicKey().Address().Bytes())
 	if err != nil {
 		return nil, err
 	}

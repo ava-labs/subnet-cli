@@ -26,34 +26,41 @@ var _ Key = &HardKey{}
 type HardKey struct {
 	l *ledger.Ledger
 
-	hrp       string
-	shortAddr ids.ShortID
-	pAddr     string
+	accountIndex uint32
+	shortAddr    ids.ShortID
+	pAddr        string
 }
 
-func NewHard(networkID uint32) (*HardKey, error) {
+func NewHard(networkID uint32, accountIndex uint32) (*HardKey, error) {
 	k := &HardKey{}
 	var err error
 	color.Outf("{{yellow}}connecting to ledger...{{/}}\n")
 	k.l, err = ledger.Connect()
 	if err != nil {
+		color.Outf("{{yellow}}failed to connect to ledger: %v{{/}}\n", err)
 		return nil, err
 	}
 
 	color.Outf("{{yellow}}deriving address from ledger...{{/}}\n")
-	k.hrp = getHRP(networkID)
-	_, k.shortAddr, err = k.l.Address(k.hrp, 0, 0)
+	hrp := getHRP(networkID)
+	k.accountIndex = accountIndex
+	_, k.shortAddr, err = k.l.Address(hrp, k.accountIndex, 0)
 	if err != nil {
+		color.Outf("{{yellow}}failed to derive address: %v{{/}}\n", err)
 		return nil, err
 	}
 
-	k.pAddr, err = formatting.FormatAddress("P", k.hrp, k.shortAddr[:])
+	k.pAddr, err = formatting.FormatAddress("P", hrp, k.shortAddr[:])
 	if err != nil {
 		return nil, err
 	}
 	color.Outf("{{yellow}}derived address from ledger: %s{{/}}\n", k.pAddr)
 
 	return k, nil
+}
+
+func (h *HardKey) Disconnect() error {
+	return h.l.Disconnect()
 }
 
 func (h *HardKey) P() string { return h.pAddr }
@@ -161,7 +168,7 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, sigs int) error {
 	cred := &secp256k1fx.Credential{
 		Sigs: make([][crypto.SECP256K1RSigLen]byte, 1),
 	}
-	sig, err := h.l.SignHash(hash, [][]uint32{{0, 0}})
+	sig, err := h.l.SignHash(hash, [][]uint32{{0, h.accountIndex}})
 	if err != nil {
 		return fmt.Errorf("problem generating credential: %w", err)
 	}

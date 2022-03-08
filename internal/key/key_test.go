@@ -71,7 +71,7 @@ func TestNewKey(t *testing.T) {
 
 	tt := []struct {
 		name   string
-		opts   []OpOption
+		opts   []SOpOption
 		expErr error
 	}{
 		{
@@ -81,21 +81,21 @@ func TestNewKey(t *testing.T) {
 		},
 		{
 			name: "ewop with WithPrivateKey",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(ewoqPk),
 			},
 			expErr: nil,
 		},
 		{
 			name: "ewop with WithPrivateKeyEncoded",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},
 			expErr: nil,
 		},
 		{
 			name: "ewop with WithPrivateKey/WithPrivateKeyEncoded",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(ewoqPk),
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},
@@ -103,7 +103,7 @@ func TestNewKey(t *testing.T) {
 		},
 		{
 			name: "ewop with invalid WithPrivateKey",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(privKey2),
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},

@@ -38,8 +38,8 @@ Use "subnet-cli [command] --help" for more information about a command.
 ```
 
 ## Ledger Support
-To use your [Ledger](https://www.ledger.com/) with `subnet-cli`, just add `-l`
-or `--ledger` to any command below.
+To use your [Ledger](https://www.ledger.com/) with `subnet-cli`, just add the
+`-l`/`--ledger` flag to any command below.
 
 Make sure you've downloaded the latest version of the
 [Avalanche Ledger App](https://docs.avax.network/learn/setup-your-ledger-nano-s-with-avalanche)

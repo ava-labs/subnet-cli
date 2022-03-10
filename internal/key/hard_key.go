@@ -5,6 +5,7 @@ package key
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/ava-labs/subnet-cli/internal/codec"
@@ -19,6 +20,8 @@ import (
 	"github.com/ava-labs/avalanchego/vms/components/verify"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/manifoldco/promptui"
+	"github.com/onsi/ginkgo/v2/formatter"
 	"go.uber.org/zap"
 )
 
@@ -50,35 +53,68 @@ func parseLedgerErr(err error, fallback string) {
 	}
 }
 
+// retriableLedgerAction wraps all Ledger calls to allow the user to try and
+// recover instead of exiting (in case their Ledger locks).
+func retriableLegerAction(f func() error, fallback string) error {
+	for {
+		rerr := f()
+		if rerr == nil {
+			return nil
+		}
+		parseLedgerErr(rerr, fallback)
+
+		color.Outf("\n{{cyan}}ledger action failed...what now?{{/}}\n")
+		prompt := promptui.Select{
+			Label:  "\n",
+			Stdout: os.Stdout,
+			Items: []string{
+				formatter.F("{{green}}retry{{/}}"),
+				formatter.F("{{red}}exit{{/}}"),
+			},
+		}
+		idx, _, err := prompt.Run()
+		if err != nil || idx == 1 {
+			return rerr
+		}
+	}
+}
+
 func NewHard(networkID uint32) (*HardKey, error) {
 	k := &HardKey{}
-	var err error
 	color.Outf("{{yellow}}connecting to ledger...{{/}}\n")
-	k.l, err = ledger.Connect()
-	if err != nil {
-		parseLedgerErr(err, "failed to connect to ledger")
+	if err := retriableLegerAction(func() error {
+		l, err := ledger.Connect()
+		if err != nil {
+			return err
+		}
+		k.l = l
+		return nil
+	}, "failed to connect to ledger"); err != nil {
 		return nil, err
 	}
 
 	color.Outf("{{yellow}}deriving address from ledger...{{/}}\n")
 	hrp := getHRP(networkID)
-	addrs, err := k.l.Addresses(hrp, numAddresses)
-	if err != nil {
-		parseLedgerErr(err, "failed to derive address")
-		return nil, err
-	}
-
-	laddrs := len(addrs)
-	k.pAddrs = make([]string, laddrs)
-	k.shortAddrs = make([]ids.ShortID, laddrs)
-	k.shortAddrMap = map[ids.ShortID]uint32{}
-	for i, addr := range addrs {
-		k.pAddrs[i], err = formatting.FormatAddress("P", hrp, addr.ShortAddr[:])
+	if err := retriableLegerAction(func() error {
+		addrs, err := k.l.Addresses(hrp, numAddresses)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		k.shortAddrs[i] = addr.ShortAddr
-		k.shortAddrMap[addr.ShortAddr] = uint32(i)
+		laddrs := len(addrs)
+		k.pAddrs = make([]string, laddrs)
+		k.shortAddrs = make([]ids.ShortID, laddrs)
+		k.shortAddrMap = map[ids.ShortID]uint32{}
+		for i, addr := range addrs {
+			k.pAddrs[i], err = formatting.FormatAddress("P", hrp, addr.ShortAddr[:])
+			if err != nil {
+				return err
+			}
+			k.shortAddrs[i] = addr.ShortAddr
+			k.shortAddrMap[addr.ShortAddr] = uint32(i)
+		}
+		return nil
+	}, "failed to get extended public key"); err != nil {
+		return nil, err
 	}
 
 	color.Outf("{{yellow}}derived primary address from ledger: %s{{/}}\n", k.pAddrs[0])
@@ -208,9 +244,15 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 	for idx := range uniqueSigners {
 		indices = append(indices, idx)
 	}
-	sigs, err := h.l.SignHash(hash, indices)
-	if err != nil {
-		parseLedgerErr(err, "failed to sign hash")
+
+	var sigs [][]byte
+	if err := retriableLegerAction(func() error {
+		sigs, err = h.l.SignHash(hash, indices)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, "failed to sign hash"); err != nil {
 		return fmt.Errorf("problem generating signatures: %w", err)
 	}
 	sigMap := map[ids.ShortID][]byte{}

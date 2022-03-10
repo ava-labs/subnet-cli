@@ -29,7 +29,7 @@ func TestNewKeyEwoq(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if m.P() != ewoqPChainAddr {
+	if m.P()[0] != ewoqPChainAddr {
 		t.Fatalf("unexpected P-Chain address %q, expected %q", m.P(), ewoqPChainAddr)
 	}
 

@@ -169,12 +169,13 @@ func (m *SoftKey) P() []string { return []string{m.pAddr} }
 func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
 	inputs []*avax.TransferableInput,
+	signers [][]ids.ShortID,
 ) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 
 	for _, out := range outputs {
-		input, err := m.spend(out, ret.time)
+		input, psigners, err := m.spend(out, ret.time)
 		if err != nil {
 			zap.L().Warn("cannot spend with current key", zap.Error(err))
 			continue
@@ -185,32 +186,38 @@ func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 			Asset:  out.Asset,
 			In:     input,
 		})
+		// Convert to ids.ShortID to adhere with interface
+		pksigners := make([]ids.ShortID, len(psigners))
+		for i, psigner := range psigners {
+			pksigners[i] = psigner.PublicKey().Address()
+		}
+		signers = append(signers, pksigners)
 		if ret.targetAmount > 0 &&
 			totalBalanceToSpend > ret.targetAmount+ret.feeDeduct {
 			break
 		}
 	}
-	avax.SortTransferableInputs(inputs)
-
-	return totalBalanceToSpend, inputs
+	SortTransferableInputsWithSigners(inputs, signers)
+	return totalBalanceToSpend, inputs, signers
 }
 
 func (m *SoftKey) spend(output *avax.UTXO, time uint64) (
 	input avax.TransferableIn,
+	signers []*crypto.PrivateKeySECP256K1R,
 	err error,
 ) {
 	// "time" is used to check whether the key owner
 	// is still within the lock time (thus can't spend).
-	inputf, _, err := m.keyChain.Spend(output.Out, time)
+	inputf, psigners, err := m.keyChain.Spend(output.Out, time)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ok bool
 	input, ok = inputf.(avax.TransferableIn)
 	if !ok {
-		return nil, ErrInvalidType
+		return nil, nil, ErrInvalidType
 	}
-	return input, nil
+	return input, psigners, nil
 }
 
 const fsModeWrite = 0o600
@@ -321,11 +328,18 @@ func (m *SoftKey) Addresses() []ids.ShortID {
 	return []ids.ShortID{m.privKey.PublicKey().Address()}
 }
 
-func (m *SoftKey) Sign(pTx *platformvm.Tx, sigs int) error {
-	signers := make([][]*crypto.PrivateKeySECP256K1R, sigs)
-	for i := 0; i < sigs; i++ {
-		signers[i] = []*crypto.PrivateKeySECP256K1R{m.privKey}
+func (m *SoftKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
+	privsigners := make([][]*crypto.PrivateKeySECP256K1R, len(signers))
+	for i, inputSigners := range signers {
+		privsigners[i] = make([]*crypto.PrivateKeySECP256K1R, len(inputSigners))
+		for j, signer := range inputSigners {
+			if signer != m.privKey.PublicKey().Address() {
+				// Should never happen
+				return ErrCantSpend
+			}
+			privsigners[i][j] = m.privKey
+		}
 	}
 
-	return pTx.Sign(codec.PCodecManager, signers)
+	return pTx.Sign(codec.PCodecManager, privsigners)
 }

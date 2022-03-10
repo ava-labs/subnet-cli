@@ -215,7 +215,12 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 	uniqueSigners := map[uint32]struct{}{}
 	for _, inputSigners := range signers {
 		for _, signer := range inputSigners {
-			uniqueSigners[h.shortAddrMap[signer]] = struct{}{}
+			if v, ok := h.shortAddrMap[signer]; ok {
+				uniqueSigners[v] = struct{}{}
+			} else {
+				// Should never happen
+				return ErrCantSpend
+			}
 		}
 	}
 	indices := make([]uint32, len(uniqueSigners))

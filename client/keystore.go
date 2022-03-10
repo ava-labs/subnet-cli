@@ -21,7 +21,7 @@ func newKeyStore(cfg Config) *keyStore {
 	// e.g., https://api.avax-test.network
 	// ref. https://docs.avax.network/build/avalanchego-apis/keystore
 	uri := cfg.u.Scheme + "://" + cfg.u.Host
-	cli := api_keystore.NewClient(uri, cfg.RequestTimeout)
+	cli := api_keystore.NewClient(uri)
 	return &keyStore{
 		cli: cli,
 		cfg: cfg,

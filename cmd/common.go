@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -66,18 +67,17 @@ type Info struct {
 
 func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 	cli, err := client.New(client.Config{
-		URI:            uri,
-		PollInterval:   pollInterval,
-		RequestTimeout: requestTimeout,
+		URI:          uri,
+		PollInterval: pollInterval,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	txFee, err := cli.Info().Client().GetTxFee()
+	txFee, err := cli.Info().Client().GetTxFee(context.TODO())
 	if err != nil {
 		return nil, nil, err
 	}
-	networkName, err := cli.Info().Client().GetNetworkName()
+	networkName, err := cli.Info().Client().GetNetworkName(context.TODO())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,11 +91,19 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		return cli, info, nil
 	}
 
-	info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
-	if err != nil {
-		return nil, nil, err
+	if !useLedger {
+		info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		info.key, err = key.NewHard(cli.NetworkID())
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	info.balance, err = cli.P().Balance(info.key)
+
+	info.balance, err = cli.P().Balance(context.TODO(), info.key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -136,8 +144,8 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	tb.SetRowLine(true)
 	tb.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	tb.Append([]string{formatter.F("{{cyan}}{{bold}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
-	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
+	tb.Append([]string{formatter.F("{{cyan}}{{bold}}PRIMARY P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P()[0])})
+	tb.Append([]string{formatter.F("{{coral}}{{bold}}TOTAL P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
 	if i.txFee > 0 {
 		txFee := float64(i.txFee) / float64(units.Avax)
 		txFees := humanize.FormatFloat("#,###.###", txFee)
@@ -171,7 +179,7 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		}
 		i.allNodeIDs[idx] = nodeID
 
-		start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+		start, end, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
 		i.valInfos[nodeID] = &ValInfo{start, end}
 		switch {
 		case errors.Is(err, client.ErrValidatorNotFound):
@@ -189,7 +197,7 @@ func WaitValidator(cli client.Client, nodeIDs []ids.ShortID, i *Info) {
 	for _, nodeID := range nodeIDs {
 		color.Outf("{{yellow}}waiting for validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, i.subnetID)
 		for {
-			start, end, err := cli.P().GetValidator(i.subnetID, nodeID)
+			start, end, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
 			if err == nil {
 				if i.subnetID == ids.Empty {
 					i.valInfos[nodeID] = &ValInfo{start, end}

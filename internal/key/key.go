@@ -20,10 +20,10 @@ var (
 
 // Key defines methods for key manager interface.
 type Key interface {
-	// P returns the formatted P-Chain address.
-	P() string
-	// Address returns the raw ids.ShortID address.
-	Address() ids.ShortID
+	// P returns all formatted P-Chain addresses.
+	P() []string
+	// Addresses returns the all raw ids.ShortID address.
+	Addresses() []ids.ShortID
 	// Spend attempts to spend all specified UTXOs (outputs)
 	// and returns the new UTXO inputs.
 	//
@@ -33,9 +33,10 @@ type Key interface {
 	Spends(outputs []*avax.UTXO, opts ...OpOption) (
 		totalBalanceToSpend uint64,
 		inputs []*avax.TransferableInput,
+		signers [][]ids.ShortID,
 	)
 	// Sign generates [numSigs] signatures and attaches them to [pTx].
-	Sign(pTx *platformvm.Tx, numSigs int) error
+	Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error
 }
 
 type Op struct {

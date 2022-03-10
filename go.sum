@@ -83,6 +83,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
+github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec h1:1Qb69mGp/UtRPn422BH4/Y4Q3SLUrD9KHuDkm8iodFc=
+github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec/go.mod h1:CD8UlnlLDiqb36L110uqiP2iSflVjx9g/3U9hCI4q2U=
 github.com/Microsoft/go-winio v0.4.14/go.mod h1:qXqCSQ3Xa7+6tgxaGTIe4Kpcdsi+P8jBhyzoq1bpyYA=
 github.com/Microsoft/go-winio v0.4.16/go.mod h1:XB6nPKklQyQ7GC9LdcBEcBl8PF76WugXOPRXwdLnMv0=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
@@ -114,6 +116,8 @@ github.com/ava-labs/avalanche-ledger-go v0.0.2 h1:Ft663Ih8KExgERA8ybVvs3rQ9uccnV
 github.com/ava-labs/avalanche-ledger-go v0.0.2/go.mod h1:3DEBKbBSZwppTR8ZoCHyQOFrVK+nSUmJhdXmIHcSgj8=
 github.com/ava-labs/avalanche-ledger-go v0.0.3 h1:pc5CkQjLbuADNkkAFsuHCyoZCQVIH9xzrPVQ0UER9lc=
 github.com/ava-labs/avalanche-ledger-go v0.0.3/go.mod h1:3DEBKbBSZwppTR8ZoCHyQOFrVK+nSUmJhdXmIHcSgj8=
+github.com/ava-labs/avalanche-ledger-go v0.0.5-0.20220310004859-0fa1fd511fb0 h1:vtRd6S//FONOszP46tCoR55cqa8kypd8F8zmEcK4nmM=
+github.com/ava-labs/avalanche-ledger-go v0.0.5-0.20220310004859-0fa1fd511fb0/go.mod h1:ZqkyynBOe24AbsltZh3jDlrhza6Xvw+9kCgbrDOcVZY=
 github.com/ava-labs/avalanche-network-runner v0.0.0-20211220205928-4a40af6d2f7e/go.mod h1:lVD2N2iB2Gao3Gr2+tKY020EvR5/wSoeVAHKYntqqO8=
 github.com/ava-labs/avalanche-network-runner v1.0.5/go.mod h1:lwuxQh2y0HtmeKASjBC9O1Sip1oiNeFuK6Ma3PxCH4Y=
 github.com/ava-labs/avalanchego v1.5.3/go.mod h1:mfsT8C6mfjCEAjE90q8aNh9BqGEFNBd2dgIr23RaePw=

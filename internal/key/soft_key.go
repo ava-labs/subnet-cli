@@ -164,7 +164,7 @@ func (m *SoftKey) Save(p string) error {
 	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
 }
 
-func (m *SoftKey) P() string { return m.pAddr }
+func (m *SoftKey) P() []string { return []string{m.pAddr} }
 
 func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
 	totalBalanceToSpend uint64,
@@ -317,8 +317,8 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 	return privKey, nil
 }
 
-func (m *SoftKey) Address() ids.ShortID {
-	return m.privKey.PublicKey().Address()
+func (m *SoftKey) Addresses() []ids.ShortID {
+	return []ids.ShortID{m.privKey.PublicKey().Address()}
 }
 
 func (m *SoftKey) Sign(pTx *platformvm.Tx, sigs int) error {

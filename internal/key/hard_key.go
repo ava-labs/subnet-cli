@@ -4,9 +4,7 @@
 package key
 
 import (
-	"bytes"
 	"fmt"
-	"sort"
 
 	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -80,36 +78,6 @@ func (h *HardKey) P() []string { return h.pAddrs }
 
 func (h *HardKey) Addresses() []ids.ShortID {
 	return h.shortAddrs
-}
-
-type innerSortTransferableInputsWithSigners struct {
-	ins     []*avax.TransferableInput
-	signers [][]ids.ShortID
-}
-
-func (ins *innerSortTransferableInputsWithSigners) Less(i, j int) bool {
-	iID, iIndex := ins.ins[i].InputSource()
-	jID, jIndex := ins.ins[j].InputSource()
-
-	switch bytes.Compare(iID[:], jID[:]) {
-	case -1:
-		return true
-	case 0:
-		return iIndex < jIndex
-	default:
-		return false
-	}
-}
-func (ins *innerSortTransferableInputsWithSigners) Len() int { return len(ins.ins) }
-func (ins *innerSortTransferableInputsWithSigners) Swap(i, j int) {
-	ins.ins[j], ins.ins[i] = ins.ins[i], ins.ins[j]
-	ins.signers[j], ins.signers[i] = ins.signers[i], ins.signers[j]
-}
-
-// SortTransferableInputsWithSigners sorts the inputs and signers based on the
-// input's utxo ID
-func SortTransferableInputsWithSigners(ins []*avax.TransferableInput, signers [][]ids.ShortID) {
-	sort.Sort(&innerSortTransferableInputsWithSigners{ins: ins, signers: signers})
 }
 
 func (h *HardKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (

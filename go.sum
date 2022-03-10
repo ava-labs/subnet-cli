@@ -83,6 +83,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
+github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec h1:1Qb69mGp/UtRPn422BH4/Y4Q3SLUrD9KHuDkm8iodFc=
+github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec/go.mod h1:CD8UlnlLDiqb36L110uqiP2iSflVjx9g/3U9hCI4q2U=
 github.com/Microsoft/go-winio v0.4.14/go.mod h1:qXqCSQ3Xa7+6tgxaGTIe4Kpcdsi+P8jBhyzoq1bpyYA=
 github.com/Microsoft/go-winio v0.4.16/go.mod h1:XB6nPKklQyQ7GC9LdcBEcBl8PF76WugXOPRXwdLnMv0=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
@@ -110,10 +112,8 @@ github.com/armon/go-metrics v0.3.10/go.mod h1:4O98XIr/9W0sxpJ8UaYkvjk10Iff7SnFrb
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/armon/go-radix v1.0.0/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/ava-labs/avalanche-ledger-go v0.0.2 h1:Ft663Ih8KExgERA8ybVvs3rQ9uccnVWOipy9CgcUTtU=
-github.com/ava-labs/avalanche-ledger-go v0.0.2/go.mod h1:3DEBKbBSZwppTR8ZoCHyQOFrVK+nSUmJhdXmIHcSgj8=
-github.com/ava-labs/avalanche-ledger-go v0.0.3 h1:pc5CkQjLbuADNkkAFsuHCyoZCQVIH9xzrPVQ0UER9lc=
-github.com/ava-labs/avalanche-ledger-go v0.0.3/go.mod h1:3DEBKbBSZwppTR8ZoCHyQOFrVK+nSUmJhdXmIHcSgj8=
+github.com/ava-labs/avalanche-ledger-go v0.0.5 h1:iRAl8QhyNtBCP8Cy6v7949SXgNzOM/VRkTmqmxcmxJk=
+github.com/ava-labs/avalanche-ledger-go v0.0.5/go.mod h1:ZqkyynBOe24AbsltZh3jDlrhza6Xvw+9kCgbrDOcVZY=
 github.com/ava-labs/avalanche-network-runner v0.0.0-20211220205928-4a40af6d2f7e/go.mod h1:lVD2N2iB2Gao3Gr2+tKY020EvR5/wSoeVAHKYntqqO8=
 github.com/ava-labs/avalanche-network-runner v1.0.5/go.mod h1:lwuxQh2y0HtmeKASjBC9O1Sip1oiNeFuK6Ma3PxCH4Y=
 github.com/ava-labs/avalanchego v1.5.3/go.mod h1:mfsT8C6mfjCEAjE90q8aNh9BqGEFNBd2dgIr23RaePw=
@@ -124,12 +124,14 @@ github.com/ava-labs/avalanchego v1.7.4-0.20211222191707-3163be793cc9/go.mod h1:Y
 github.com/ava-labs/avalanchego v1.7.4-0.20220113231534-ccb8039d74b9/go.mod h1:hm1T3Nui/qRALnNngXmC+lWeTEPtYyPBKxaWMWuRBrs=
 github.com/ava-labs/avalanchego v1.7.4/go.mod h1:+xnmwjlkeNHhs0v5p2yvdv7cw0jgyq4SyU9O+S4EUPs=
 github.com/ava-labs/avalanchego v1.7.5-0.20220202014036-7c45dd1e2377/go.mod h1:sUhn77bV5EBGXwqcFz1FzFs94MR6SRgrU+Ob7lb+pC4=
+github.com/ava-labs/avalanchego v1.7.5/go.mod h1:Uo9V940al0S2JFYjAxpJ9IF6Yik6BITPxdZ68RY0+cQ=
 github.com/ava-labs/avalanchego v1.7.6 h1:sIo7Q2s1nGk5DEdpkUww2GpwE4u52+ma/uyckIyjeOg=
 github.com/ava-labs/avalanchego v1.7.6/go.mod h1:Mfj6Z4W1aUEHfwm/8tmdoBx5iosnFQQt2xcEdggH70w=
 github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf/go.mod h1:RTkVkouQ0HBSBVSFAQCUviXPU7Iuxoy+Fui3ykmD9HA=
 github.com/ava-labs/coreth v0.8.1-rc.0/go.mod h1:rxTZLwjo6dfyPRkf5WfLEFP3C6Tn21lCjjLUH5XqeqM=
 github.com/ava-labs/coreth v0.8.4-rc.1/go.mod h1:bP2Atm7pCJdx8fwzsPT3xU/kWOdHFklpja7aRNT++Qo=
 github.com/ava-labs/coreth v0.8.4-rc.3/go.mod h1:9TgpLJVY9ot6RV8Lh66F356S4MfalvaL3sAqw4+miTU=
+github.com/ava-labs/coreth v0.8.5-rc.2/go.mod h1:uO87Zjp3bFkBvPrnvaq0huiz9diGbO2viTTB2PxzEV4=
 github.com/ava-labs/coreth v0.8.6-rc.1/go.mod h1:D60h55zuIQu6/dc7nWpXNyk3xakq3xsWMFuumttcpqw=
 github.com/aws/aws-sdk-go-v2 v1.2.0/go.mod h1:zEQs02YRBw1DjK0PoJv3ygDYOFTre1ejlJWl8FwAuQo=
 github.com/aws/aws-sdk-go-v2/config v1.1.1/go.mod h1:0XsVy9lBI/BCXm+2Tuvt39YmdHwS5unDQmxZOYe8F5Y=

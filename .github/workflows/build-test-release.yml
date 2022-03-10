@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build_test_release:
@@ -26,12 +28,13 @@ jobs:
         run: scripts/tests.unit.sh
       - name: Run e2e tests
         shell: bash
-        run: scripts/tests.e2e.sh 1.7.4
-      # - name: Run GoReleaser for cross-platform builds
-      #   uses: goreleaser/goreleaser-action@v2
-      #   with:
-      #     distribution: goreleaser
-      #     version: latest
-      #     # TODO: automate github release page announce and artifact uploads?
-      #     # https://goreleaser.com/cmd/goreleaser_release/
-      #     args: release --rm-dist --skip-announce --skip-publish
+        run: scripts/tests.e2e.sh 1.7.6
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+        env:
+          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

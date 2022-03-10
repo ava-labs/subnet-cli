@@ -4,6 +4,7 @@ A command-line interface to manage [Avalanche Subnets](https://docs.avax.network
 
 ## Install
 
+### Source
 ```bash
 git clone https://github.com/ava-labs/subnet-cli.git;
 cd subnet-cli;
@@ -13,6 +14,35 @@ go install -v .;
 Once you have installed `subnet-cli`, check the help page to confirm it is
 working as expected (_make sure your $GOBIN is in your $PATH_):
 
+### Pre-Built Binaries
+```bash
+VERSION=0.0.1 # Populate latest here
+
+GOARCH=$(go env GOARCH)
+GOOS=$(go env GOOS)
+DOWNLOAD_PATH=/tmp/subnet-cli.tar.gz
+DOWNLOAD_URL=https://github.com/ava-labs/subnet-cli/releases/download/v${VERSION}/subnet-cli_${VERSION}_linux_${GOARCH}.tar.gz
+if [[ ${GOOS} == "darwin" ]]; then
+  DOWNLOAD_URL=https://github.com/ava-labs/subnet-cli/releases/download/v${VERSION}/subnet-cli_${VERSION}_darwin_${GOARCH}.tar.gz
+fi
+
+rm -f ${DOWNLOAD_PATH}
+rm -f /tmp/subnet-cli
+
+echo "downloading subnet-cli ${VERSION} at ${DOWNLOAD_URL}"
+curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
+
+echo "extracting downloaded subnet-cli"
+tar xzvf ${DOWNLOAD_PATH} -C /tmp
+
+/tmp/subnet-cli -h
+
+# OR
+# mv /tmp/subnet-cli /usr/bin/subnet-cli
+# subnet-cli -h
+```
+
+## Usage
 ```bash
 subnet-cli CLI
 
@@ -37,15 +67,13 @@ Flags:
 Use "subnet-cli [command] --help" for more information about a command.
 ```
 
-## Ledger Support
+#### Ledger Support
 To use your [Ledger](https://www.ledger.com) with `subnet-cli`, just add the
 `-l`/`--ledger` flag to any command below.
 
 Make sure you've downloaded the latest version of the
 [Avalanche Ledger App](https://docs.avax.network/learn/setup-your-ledger-nano-s-with-avalanche)
 first!
-
-## Usage
 
 The following commands will walk you through creating a subnet on Fuji.
 

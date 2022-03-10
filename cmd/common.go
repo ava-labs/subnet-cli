@@ -144,8 +144,8 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	tb.SetRowLine(true)
 	tb.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	tb.Append([]string{formatter.F("{{cyan}}{{bold}}P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P())})
-	tb.Append([]string{formatter.F("{{coral}}{{bold}}P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
+	tb.Append([]string{formatter.F("{{cyan}}{{bold}}PRIMARY P-CHAIN ADDRESS{{/}}"), formatter.F("{{light-gray}}{{bold}}%s{{/}}", i.key.P()[0])})
+	tb.Append([]string{formatter.F("{{coral}}{{bold}}TOTAL P-CHAIN BALANCE{{/}} "), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", curPChainDenominatedBalanceP)})
 	if i.txFee > 0 {
 		txFee := float64(i.txFee) / float64(units.Avax)
 		txFees := humanize.FormatFloat("#,###.###", txFee)

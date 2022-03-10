@@ -11,6 +11,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
@@ -24,6 +25,8 @@ type Key interface {
 	P() []string
 	// Addresses returns the all raw ids.ShortID address.
 	Addresses() []ids.ShortID
+	// Match attempts to match a list of addresses up to the provided threshold.
+	Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, []ids.ShortID, bool)
 	// Spend attempts to spend all specified UTXOs (outputs)
 	// and returns the new UTXO inputs.
 	//

@@ -165,14 +165,14 @@ func (h *HardKey) spend(output *avax.UTXO, time uint64) (
 func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable, []ids.ShortID, error) {
 	switch out := out.(type) {
 	case *secp256k1fx.MintOutput:
-		if sigIndices, signers, able := h.match(&out.OutputOwners, time); able {
+		if sigIndices, signers, able := h.Match(&out.OutputOwners, time); able {
 			return &secp256k1fx.Input{
 				SigIndices: sigIndices,
 			}, signers, nil
 		}
 		return nil, nil, ErrCantSpend
 	case *secp256k1fx.TransferOutput:
-		if sigIndices, signers, able := h.match(&out.OutputOwners, time); able {
+		if sigIndices, signers, able := h.Match(&out.OutputOwners, time); able {
 			return &secp256k1fx.TransferInput{
 				Amt: out.Amt,
 				Input: secp256k1fx.Input{
@@ -185,8 +185,7 @@ func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable,
 	return nil, nil, fmt.Errorf("can't spend UTXO because it is unexpected type %T", out)
 }
 
-// Match attempts to match a list of addresses up to the provided threshold.
-func (h *HardKey) match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, []ids.ShortID, bool) {
+func (h *HardKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, []ids.ShortID, bool) {
 	if time < owners.Locktime {
 		return nil, nil, false
 	}

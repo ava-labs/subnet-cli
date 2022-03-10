@@ -343,3 +343,12 @@ func (m *SoftKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 
 	return pTx.Sign(codec.PCodecManager, privsigners)
 }
+
+func (m *SoftKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, []ids.ShortID, bool) {
+	indices, privs, ok := m.keyChain.Match(owners, time)
+	pks := make([]ids.ShortID, len(privs))
+	for i, priv := range privs {
+		pks[i] = priv.PublicKey().Address()
+	}
+	return indices, pks, ok
+}

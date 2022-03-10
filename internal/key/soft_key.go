@@ -143,85 +143,6 @@ func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 	return m, nil
 }
 
-// Returns the private key.
-func (m *SoftKey) Key() *crypto.PrivateKeySECP256K1R {
-	return m.privKey
-}
-
-// Returns the private key in raw bytes.
-func (m *SoftKey) Raw() []byte {
-	return m.privKeyRaw
-}
-
-// Returns the private key encoded in CB58 and "PrivateKey-" prefix.
-func (m *SoftKey) Encode() string {
-	return m.privKeyEncoded
-}
-
-// Saves the private key to disk with hex encoding.
-func (m *SoftKey) Save(p string) error {
-	k := hex.EncodeToString(m.privKeyRaw)
-	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
-}
-
-func (m *SoftKey) P() []string { return []string{m.pAddr} }
-
-func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
-	totalBalanceToSpend uint64,
-	inputs []*avax.TransferableInput,
-	signers [][]ids.ShortID,
-) {
-	ret := &Op{}
-	ret.applyOpts(opts)
-
-	for _, out := range outputs {
-		input, psigners, err := m.spend(out, ret.time)
-		if err != nil {
-			zap.L().Warn("cannot spend with current key", zap.Error(err))
-			continue
-		}
-		totalBalanceToSpend += input.Amount()
-		inputs = append(inputs, &avax.TransferableInput{
-			UTXOID: out.UTXOID,
-			Asset:  out.Asset,
-			In:     input,
-		})
-		// Convert to ids.ShortID to adhere with interface
-		pksigners := make([]ids.ShortID, len(psigners))
-		for i, psigner := range psigners {
-			pksigners[i] = psigner.PublicKey().Address()
-		}
-		signers = append(signers, pksigners)
-		if ret.targetAmount > 0 &&
-			totalBalanceToSpend > ret.targetAmount+ret.feeDeduct {
-			break
-		}
-	}
-	SortTransferableInputsWithSigners(inputs, signers)
-	return totalBalanceToSpend, inputs, signers
-}
-
-func (m *SoftKey) spend(output *avax.UTXO, time uint64) (
-	input avax.TransferableIn,
-	signers []*crypto.PrivateKeySECP256K1R,
-	err error,
-) {
-	// "time" is used to check whether the key owner
-	// is still within the lock time (thus can't spend).
-	inputf, psigners, err := m.keyChain.Spend(output.Out, time)
-	if err != nil {
-		return nil, nil, err
-	}
-	var ok bool
-	input, ok = inputf.(avax.TransferableIn)
-	if !ok {
-		return nil, nil, ErrInvalidType
-	}
-	return input, psigners, nil
-}
-
-const fsModeWrite = 0o600
-
 // LoadSoft loads the private key from disk and creates the corresponding SoftKey.
 func LoadSoft(networkID uint32, keyPath string) (*SoftKey, error) {
 	kb, err := ioutil.ReadFile(keyPath)
@@ -323,6 +244,85 @@ func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 	}
 	return privKey, nil
 }
+
+// Returns the private key.
+func (m *SoftKey) Key() *crypto.PrivateKeySECP256K1R {
+	return m.privKey
+}
+
+// Returns the private key in raw bytes.
+func (m *SoftKey) Raw() []byte {
+	return m.privKeyRaw
+}
+
+// Returns the private key encoded in CB58 and "PrivateKey-" prefix.
+func (m *SoftKey) Encode() string {
+	return m.privKeyEncoded
+}
+
+// Saves the private key to disk with hex encoding.
+func (m *SoftKey) Save(p string) error {
+	k := hex.EncodeToString(m.privKeyRaw)
+	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
+}
+
+func (m *SoftKey) P() []string { return []string{m.pAddr} }
+
+func (m *SoftKey) Spends(outputs []*avax.UTXO, opts ...OpOption) (
+	totalBalanceToSpend uint64,
+	inputs []*avax.TransferableInput,
+	signers [][]ids.ShortID,
+) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	for _, out := range outputs {
+		input, psigners, err := m.spend(out, ret.time)
+		if err != nil {
+			zap.L().Warn("cannot spend with current key", zap.Error(err))
+			continue
+		}
+		totalBalanceToSpend += input.Amount()
+		inputs = append(inputs, &avax.TransferableInput{
+			UTXOID: out.UTXOID,
+			Asset:  out.Asset,
+			In:     input,
+		})
+		// Convert to ids.ShortID to adhere with interface
+		pksigners := make([]ids.ShortID, len(psigners))
+		for i, psigner := range psigners {
+			pksigners[i] = psigner.PublicKey().Address()
+		}
+		signers = append(signers, pksigners)
+		if ret.targetAmount > 0 &&
+			totalBalanceToSpend > ret.targetAmount+ret.feeDeduct {
+			break
+		}
+	}
+	SortTransferableInputsWithSigners(inputs, signers)
+	return totalBalanceToSpend, inputs, signers
+}
+
+func (m *SoftKey) spend(output *avax.UTXO, time uint64) (
+	input avax.TransferableIn,
+	signers []*crypto.PrivateKeySECP256K1R,
+	err error,
+) {
+	// "time" is used to check whether the key owner
+	// is still within the lock time (thus can't spend).
+	inputf, psigners, err := m.keyChain.Spend(output.Out, time)
+	if err != nil {
+		return nil, nil, err
+	}
+	var ok bool
+	input, ok = inputf.(avax.TransferableIn)
+	if !ok {
+		return nil, nil, ErrInvalidType
+	}
+	return input, psigners, nil
+}
+
+const fsModeWrite = 0o600
 
 func (m *SoftKey) Addresses() []ids.ShortID {
 	return []ids.ShortID{m.privKey.PublicKey().Address()}

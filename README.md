@@ -38,7 +38,7 @@ Use "subnet-cli [command] --help" for more information about a command.
 ```
 
 ## Ledger Support
-To use your [Ledger](https://www.ledger.com/) with `subnet-cli`, just add the
+To use your [Ledger](https://www.ledger.com) with `subnet-cli`, just add the
 `-l`/`--ledger` flag to any command below.
 
 Make sure you've downloaded the latest version of the

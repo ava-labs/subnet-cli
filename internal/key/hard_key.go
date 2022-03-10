@@ -129,7 +129,6 @@ func (h *HardKey) spend(output *avax.UTXO, time uint64) (
 	return input, signers, nil
 }
 
-// Spend attempts to create an input.
 func (h *HardKey) lspend(out verify.Verifiable, time uint64) (verify.Verifiable, []ids.ShortID, error) {
 	switch out := out.(type) {
 	case *secp256k1fx.MintOutput:
@@ -168,7 +167,7 @@ func (h *HardKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32
 	return sigs, signers, uint32(len(sigs)) == owners.Threshold
 }
 
-// Sign transaction with the ledger private key
+// Sign transaction with the Ledger private key
 //
 // This is a slightly modified version of *platformvm.Tx.Sign().
 func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {

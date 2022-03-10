@@ -5,6 +5,7 @@ package key
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -35,13 +36,27 @@ type HardKey struct {
 	shortAddrMap map[ids.ShortID]uint32
 }
 
+func parseLedgerErr(err error, fallback string) {
+	errString := err.Error()
+	switch {
+	case strings.Contains(errString, "LedgerHID device") && strings.Contains(errString, "not found"):
+		color.Outf("{{red}}ledger is not connected{{/}}\n")
+	case strings.Contains(errString, "6b0c"):
+		color.Outf("{{red}}ledger is not unlocked{{/}}\n")
+	case strings.Contains(errString, "APDU_CODE_CONDITIONS_NOT_SATISFIED"):
+		color.Outf("{{red}}ledger rejected signing{{/}}\n")
+	default:
+		color.Outf("{{red}}%s: %v{{/}}\n", fallback, err)
+	}
+}
+
 func NewHard(networkID uint32) (*HardKey, error) {
 	k := &HardKey{}
 	var err error
 	color.Outf("{{yellow}}connecting to ledger...{{/}}\n")
 	k.l, err = ledger.Connect()
 	if err != nil {
-		color.Outf("{{yellow}}failed to connect to ledger: %v{{/}}\n", err)
+		parseLedgerErr(err, "failed to connect to ledger")
 		return nil, err
 	}
 
@@ -49,7 +64,7 @@ func NewHard(networkID uint32) (*HardKey, error) {
 	hrp := getHRP(networkID)
 	addrs, err := k.l.Addresses(hrp, numAddresses)
 	if err != nil {
-		color.Outf("{{yellow}}failed to derive address: %v{{/}}\n", err)
+		parseLedgerErr(err, "failed to derive address")
 		return nil, err
 	}
 
@@ -189,12 +204,13 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 			}
 		}
 	}
-	indices := make([]uint32, len(uniqueSigners))
+	indices := make([]uint32, 0, len(uniqueSigners))
 	for idx := range uniqueSigners {
 		indices = append(indices, idx)
 	}
 	sigs, err := h.l.SignHash(hash, indices)
 	if err != nil {
+		parseLedgerErr(err, "failed to sign hash")
 		return fmt.Errorf("problem generating signatures: %w", err)
 	}
 	sigMap := map[ids.ShortID][]byte{}

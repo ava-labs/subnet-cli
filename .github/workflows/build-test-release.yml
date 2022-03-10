@@ -28,7 +28,7 @@ jobs:
         run: scripts/tests.unit.sh
       - name: Run e2e tests
         shell: bash
-        run: scripts/tests.e2e.sh 1.7.4
+        run: scripts/tests.e2e.sh 1.7.6
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:

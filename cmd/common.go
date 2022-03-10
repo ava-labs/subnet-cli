@@ -36,9 +36,10 @@ type Info struct {
 	feeData *info.GetTxFeeResponse
 	balance uint64
 
-	txFee           uint64
-	stakeAmount     uint64
-	requiredBalance uint64
+	txFee            uint64
+	stakeAmount      uint64
+	totalStakeAmount uint64
+	requiredBalance  uint64
 
 	key key.Key
 
@@ -154,7 +155,12 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	if i.stakeAmount > 0 {
 		stakeAmount := float64(i.stakeAmount) / float64(units.Avax)
 		stakeAmounts := humanize.FormatFloat("#,###.###", stakeAmount)
-		tb.Append([]string{formatter.F("{{red}}{{bold}}STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", stakeAmounts)})
+		tb.Append([]string{formatter.F("{{red}}{{bold}}EACH STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", stakeAmounts)})
+	}
+	if i.totalStakeAmount > 0 {
+		totalStakeAmount := float64(i.totalStakeAmount) / float64(units.Avax)
+		totalStakeAmounts := humanize.FormatFloat("#,###.###", totalStakeAmount)
+		tb.Append([]string{formatter.F("{{red}}{{bold}}TOTAL STAKE AMOUNT{{/}}"), formatter.F("{{light-gray}}{{bold}}{{underline}}%s{{/}} $AVAX", totalStakeAmounts)})
 	}
 	if i.requiredBalance > 0 {
 		requiredBalance := float64(i.requiredBalance) / float64(units.Avax)

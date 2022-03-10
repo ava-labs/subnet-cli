@@ -71,11 +71,18 @@ Use "subnet-cli [command] --help" for more information about a command.
 To use your [Ledger](https://www.ledger.com) with `subnet-cli`, just add the
 `-l`/`--ledger` flag to any command below.
 
-Make sure you've downloaded the latest version of the
-[Avalanche Ledger App](https://docs.avax.network/learn/setup-your-ledger-nano-s-with-avalanche)
-first!
+For example, to create 4 node network on Fuji with Ledger, you would run:
+```bash
+subnet-cli wizard \
+--ledger \
+--node-ids=NodeID-741aqvs6R4iuHDyd1qT1NrFTmsgu78dc4,NodeID-K7Y79oAmBntAcdkyY1CLxCim8QuqcZbBp,NodeID-C3EY6u4v7DDi6YEbYf1wmXdvkEFXYuXNW,NodeID-AiLGeqQfh9gZY3Y8wLMD15tuJtsJHq5Qi \
+--vm-genesis-path=fake-genesis.json \
+--vm-id=tGas3T58KzdjLHhBDMnH2TvrddhqTji5iZAMZ3RXs2NLpSnhH \
+--chain-name=test
+```
 
-The following commands will walk you through creating a subnet on Fuji.
+_Make sure you've downloaded the latest version of the
+[Avalanche Ledger App](https://docs.avax.network/learn/setup-your-ledger-nano-s-with-avalanche)!_
 
 ### `subnet-cli create VMID`
 

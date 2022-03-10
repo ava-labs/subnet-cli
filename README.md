@@ -200,4 +200,4 @@ See [`scripts/tests.e2e.sh`](scripts/tests.e2e.sh) and [`tests/e2e/e2e_test.go`]
 
 ## Running with local network
 
-See [`avax-tester`](https://github.com/gyuho/avax-tester#avax-tester) or [`network-runner`](https://github.com/ava-labs/avalanche-network-runner).
+See [`network-runner`](https://github.com/ava-labs/avalanche-network-runner).

@@ -33,6 +33,7 @@ func WizardCommand() *cobra.Command {
 	// "create subnet"
 	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
+	cmd.PersistentFlags().BoolVarP(&useLedger, "ledger", "l", false, "use ledger to sign transactions")
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
@@ -69,8 +70,8 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	info.validateWeight = defaultValidateWeight
 	info.validateRewardFeePercent = defaultValFeePercent
-	info.rewardAddr = info.key.Key().PublicKey().Address()
-	info.changeAddr = info.key.Key().PublicKey().Address()
+	info.rewardAddr = info.key.Addresses()[0]
+	info.changeAddr = info.key.Addresses()[0]
 	info.vmID, err = ids.FromString(vmIDs)
 	if err != nil {
 		return err
@@ -83,7 +84,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	info.vmGenesisPath = vmGenesisPath
 
 	// Compute dry run cost/actions for approval
-	info.stakeAmount = uint64(len(info.nodeIDs)) * defaultStakeAmount
+	info.totalStakeAmount = uint64(len(info.nodeIDs)) * info.stakeAmount
 	info.txFee = uint64(info.feeData.CreateSubnetTxFee) + uint64(info.feeData.TxFee)*uint64(len(info.allNodeIDs)) + uint64(info.feeData.CreateBlockchainTxFee)
 	info.requiredBalance = info.stakeAmount + info.txFee
 	if err := info.CheckBalance(); err != nil {
@@ -222,8 +223,11 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	// Print out summary of actions (subnetID, chainID, validator periods)
 	info.requiredBalance = 0
 	info.stakeAmount = 0
+	info.totalStakeAmount = 0
 	info.txFee = 0
-	info.balance, err = cli.P().Balance(info.key)
+	ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
+	info.balance, err = cli.P().Balance(ctx, info.key)
+	cancel()
 	if err != nil {
 		return err
 	}

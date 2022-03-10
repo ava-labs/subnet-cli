@@ -100,13 +100,12 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	color.Outf("{{green}}creating subnet-cli client{{/}}\n")
 	cli, err = client.New(client.Config{
-		URI:            uris[0],
-		PollInterval:   time.Second,
-		RequestTimeout: time.Minute,
+		URI:          uris[0],
+		PollInterval: time.Second,
 	})
 	gomega.Ω(err).Should(gomega.BeNil())
 
-	k, err = key.New(9999999, "test", key.WithPrivateKeyEncoded(key.EwoqPrivateKey))
+	k, err = key.NewSoft(9999999, key.WithPrivateKeyEncoded(key.EwoqPrivateKey))
 	gomega.Ω(err).Should(gomega.BeNil())
 })
 
@@ -126,9 +125,9 @@ var subnetID = ids.Empty
 
 var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 	ginkgo.It("can issue CreateSubnetTx", func() {
-		balance, err := cli.P().Balance(k)
+		balance, err := cli.P().Balance(context.Background(), k)
 		gomega.Ω(err).Should(gomega.BeNil())
-		feeInfo, err := cli.Info().Client().GetTxFee()
+		feeInfo, err := cli.Info().Client().GetTxFee(context.Background())
 		gomega.Ω(err).Should(gomega.BeNil())
 		subnetTxFee := uint64(feeInfo.CreateSubnetTxFee)
 		expectedBalance := balance - subnetTxFee
@@ -149,14 +148,14 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		subnetID = subnet1
 
 		ginkgo.By("returns a tx-fee deducted balance", func() {
-			curBal, err := cli.P().Balance(k)
+			curBal, err := cli.P().Balance(context.Background(), k)
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))
 		})
 	})
 
 	ginkgo.It("can add subnet/validators", func() {
-		nodeIDs, err := cli.Info().Client().GetNodeID()
+		nodeIDs, err := cli.Info().Client().GetNodeID(context.Background())
 		gomega.Ω(err).Should(gomega.BeNil())
 		nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
 		gomega.Ω(err).Should(gomega.BeNil())
@@ -270,15 +269,15 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 
 		ginkgo.Skip("TODO: once we have a testable spaces VM in public")
 
-		balance, err := cli.P().Balance(k)
+		balance, err := cli.P().Balance(context.Background(), k)
 		gomega.Ω(err).Should(gomega.BeNil())
-		feeInfo, err := cli.Info().Client().GetTxFee()
+		feeInfo, err := cli.Info().Client().GetTxFee(context.Background())
 		gomega.Ω(err).Should(gomega.BeNil())
 		blkChainFee := uint64(feeInfo.CreateBlockchainTxFee)
 		expectedBalance := balance - blkChainFee
 
 		ginkgo.By("returns a tx-fee deducted balance", func() {
-			curBal, err := cli.P().Balance(k)
+			curBal, err := cli.P().Balance(context.Background(), k)
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))
 		})

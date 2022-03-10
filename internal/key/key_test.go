@@ -21,16 +21,15 @@ const (
 func TestNewKeyEwoq(t *testing.T) {
 	t.Parallel()
 
-	m, err := New(
+	m, err := NewSoft(
 		fallbackNetworkID,
-		"ewoq",
 		WithPrivateKeyEncoded(EwoqPrivateKey),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if m.P() != ewoqPChainAddr {
+	if m.P()[0] != ewoqPChainAddr {
 		t.Fatalf("unexpected P-Chain address %q, expected %q", m.P(), ewoqPChainAddr)
 	}
 
@@ -39,7 +38,7 @@ func TestNewKeyEwoq(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m2, err := Load(fallbackNetworkID, keyPath)
+	m2, err := LoadSoft(fallbackNetworkID, keyPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +70,7 @@ func TestNewKey(t *testing.T) {
 
 	tt := []struct {
 		name   string
-		opts   []OpOption
+		opts   []SOpOption
 		expErr error
 	}{
 		{
@@ -81,21 +80,21 @@ func TestNewKey(t *testing.T) {
 		},
 		{
 			name: "ewop with WithPrivateKey",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(ewoqPk),
 			},
 			expErr: nil,
 		},
 		{
 			name: "ewop with WithPrivateKeyEncoded",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},
 			expErr: nil,
 		},
 		{
 			name: "ewop with WithPrivateKey/WithPrivateKeyEncoded",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(ewoqPk),
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},
@@ -103,7 +102,7 @@ func TestNewKey(t *testing.T) {
 		},
 		{
 			name: "ewop with invalid WithPrivateKey",
-			opts: []OpOption{
+			opts: []SOpOption{
 				WithPrivateKey(privKey2),
 				WithPrivateKeyEncoded(EwoqPrivateKey),
 			},
@@ -111,12 +110,9 @@ func TestNewKey(t *testing.T) {
 		},
 	}
 	for i, tv := range tt {
-		m, err := New(fallbackNetworkID, tv.name, tv.opts...)
+		_, err := NewSoft(fallbackNetworkID, tv.opts...)
 		if !errors.Is(err, tv.expErr) {
-			t.Fatalf("#%d: unexpected error %v, expected %v", i, err, tv.expErr)
-		}
-		if err == nil && m.Name() != tv.name {
-			t.Fatalf("#%d: unexpected name %v, expected %v", i, m.Name(), tv.name)
+			t.Fatalf("#%d(%s): unexpected error %v, expected %v", i, tv.name, err, tv.expErr)
 		}
 	}
 }

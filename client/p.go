@@ -14,14 +14,15 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/math"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	pstatus "github.com/ava-labs/avalanchego/vms/platformvm/status"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	internal_avax "github.com/ava-labs/subnet-cli/internal/avax"
+	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"go.uber.org/zap"
@@ -49,7 +50,7 @@ var (
 type P interface {
 	Client() platformvm.Client
 	Checker() internal_platformvm.Checker
-	Balance(key key.Key) (uint64, error)
+	Balance(ctx context.Context, key key.Key) (uint64, error)
 	CreateSubnet(
 		ctx context.Context,
 		key key.Key,
@@ -82,7 +83,11 @@ type P interface {
 		vmGenesis []byte,
 		opts ...OpOption,
 	) (blkChainID ids.ID, took time.Duration, err error)
-	GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error)
+	GetValidator(
+		ctx context.Context,
+		rsubnetID ids.ID,
+		nodeID ids.ShortID,
+	) (start time.Time, end time.Time, err error)
 }
 
 type p struct {
@@ -100,8 +105,8 @@ type p struct {
 func (pc *p) Client() platformvm.Client            { return pc.cli }
 func (pc *p) Checker() internal_platformvm.Checker { return pc.checker }
 
-func (pc *p) Balance(key key.Key) (uint64, error) {
-	pb, err := pc.cli.GetBalance(key.P())
+func (pc *p) Balance(ctx context.Context, key key.Key) (uint64, error) {
+	pb, err := pc.cli.GetBalance(ctx, key.P())
 	if err != nil {
 		return 0, err
 	}
@@ -117,7 +122,7 @@ func (pc *p) CreateSubnet(
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -128,7 +133,7 @@ func (pc *p) CreateSubnet(
 		zap.String("assetId", pc.assetID.String()),
 		zap.Uint64("createSubnetTxFee", createSubnetTxFee),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createSubnetTxFee)
+	ins, returnedOuts, _, signers, err := pc.stake(ctx, k, createSubnetTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -146,13 +151,13 @@ func (pc *p) CreateSubnet(
 
 			// address to send change to, if there is any,
 			// control addresses for the new subnet
-			Addrs: []ids.ShortID{k.Key().PublicKey().Address()},
+			Addrs: []ids.ShortID{k.Addresses()[0]},
 		},
 	}
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, signers); err != nil {
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -168,7 +173,7 @@ func (pc *p) CreateSubnet(
 		return subnetID, 0, nil
 	}
 
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return subnetID, 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
@@ -180,7 +185,7 @@ func (pc *p) CreateSubnet(
 	return txID, took, err
 }
 
-func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
+func (pc *p) GetValidator(ctx context.Context, rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
 	// If no [rsubnetID] is provided, just use the PrimaryNetworkID value.
 	subnetID := constants.PrimaryNetworkID
 	if rsubnetID != ids.Empty {
@@ -188,7 +193,7 @@ func (pc *p) GetValidator(rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time
 	}
 
 	// Find validator data associated with [nodeID]
-	vs, err := pc.Client().GetCurrentValidators(subnetID, []ids.ShortID{nodeID})
+	vs, err := pc.Client().GetCurrentValidators(ctx, subnetID, []ids.ShortID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
@@ -264,12 +269,12 @@ func (pc *p) AddSubnetValidator(
 		return 0, ErrEmptyID
 	}
 
-	_, _, err = pc.GetValidator(subnetID, nodeID)
+	_, _, err = pc.GetValidator(ctx, subnetID, nodeID)
 	if !errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrAlreadySubnetValidator
 	}
 
-	validateStart, validateEnd, err := pc.GetValidator(ids.ID{}, nodeID)
+	validateStart, validateEnd, err := pc.GetValidator(ctx, ids.ID{}, nodeID)
 	if errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrNotValidatingPrimaryNetwork
 	} else if err != nil {
@@ -285,7 +290,7 @@ func (pc *p) AddSubnetValidator(
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, end, validateEnd)
 	}
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -298,11 +303,11 @@ func (pc *p) AddSubnetValidator(
 		zap.Time("end", end),
 		zap.Uint64("weight", weight),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, txFee)
+	ins, returnedOuts, _, signers, err := pc.stake(ctx, k, txFee)
 	if err != nil {
 		return 0, err
 	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	subnetAuth, subnetSigners, err := pc.authorize(ctx, k, subnetID)
 	if err != nil {
 		return 0, err
 	}
@@ -329,7 +334,7 @@ func (pc *p) AddSubnetValidator(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, signers); err != nil {
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -338,12 +343,12 @@ func (pc *p) AddSubnetValidator(
 	}); err != nil {
 		return 0, err
 	}
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
+	return pc.checker.PollTx(ctx, txID, pstatus.Committed)
 }
 
 // ref. "platformvm.VM.newAddValidatorTx".
@@ -362,7 +367,7 @@ func (pc *p) AddValidator(
 		return 0, ErrEmptyID
 	}
 
-	_, _, err = pc.GetValidator(ids.ID{}, nodeID)
+	_, _, err = pc.GetValidator(ctx, ids.ID{}, nodeID)
 	if err == nil {
 		return 0, ErrAlreadyValidator
 	} else if !errors.Is(err, ErrValidatorNotFound) {
@@ -385,13 +390,13 @@ func (pc *p) AddValidator(
 		)
 	}
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = k.Addresses()[0]
 		zap.L().Warn("reward address not set, default to self",
 			zap.String("rewardAddress", ret.rewardAddr.String()),
 		)
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = k.Addresses()[0]
 		zap.L().Warn("change address not set",
 			zap.String("changeAddress", ret.changeAddr.String()),
 		)
@@ -409,6 +414,7 @@ func (pc *p) AddValidator(
 	addStakerTxFee := uint64(0)
 
 	ins, returnedOuts, stakedOuts, signers, err := pc.stake(
+		ctx,
 		k,
 		addStakerTxFee,
 		WithStakeAmount(ret.stakeAmt),
@@ -444,7 +450,7 @@ func (pc *p) AddValidator(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, signers); err != nil {
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -453,12 +459,12 @@ func (pc *p) AddValidator(
 	}); err != nil {
 		return 0, err
 	}
-	txID, err := pc.cli.IssueTx(pTx.Bytes())
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
 
-	return pc.checker.PollTx(ctx, txID, platformvm.Committed)
+	return pc.checker.PollTx(ctx, txID, pstatus.Committed)
 }
 
 // ref. "platformvm.VM.newCreateChainTx".
@@ -481,7 +487,7 @@ func (pc *p) CreateBlockchain(
 		return ids.Empty, 0, ErrEmptyID
 	}
 
-	fi, err := pc.info.GetTxFee()
+	fi, err := pc.info.GetTxFee(ctx)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -494,11 +500,11 @@ func (pc *p) CreateBlockchain(
 		zap.String("vmId", vmID.String()),
 		zap.Uint64("createBlockchainTxFee", createBlkChainTxFee),
 	)
-	ins, returnedOuts, _, signers, err := pc.stake(k, createBlkChainTxFee)
+	ins, returnedOuts, _, signers, err := pc.stake(ctx, k, createBlkChainTxFee)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
-	subnetAuth, subnetSigners, err := pc.authorize(k, subnetID)
+	subnetAuth, subnetSigners, err := pc.authorize(ctx, k, subnetID)
 	if err != nil {
 		return ids.Empty, 0, err
 	}
@@ -521,7 +527,7 @@ func (pc *p) CreateBlockchain(
 	pTx := &platformvm.Tx{
 		UnsignedTx: utx,
 	}
-	if err := pTx.Sign(pCodecManager, signers); err != nil {
+	if err := k.Sign(pTx, signers); err != nil {
 		return ids.Empty, 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
@@ -530,7 +536,7 @@ func (pc *p) CreateBlockchain(
 	}); err != nil {
 		return ids.Empty, 0, err
 	}
-	blkChainID, err = pc.cli.IssueTx(pTx.Bytes())
+	blkChainID, err = pc.cli.IssueTx(ctx, pTx.Bytes())
 	if err != nil {
 		return ids.Empty, 0, fmt.Errorf("failed to issue tx: %w", err)
 	}
@@ -542,7 +548,7 @@ func (pc *p) CreateBlockchain(
 			ctx,
 			internal_platformvm.WithSubnetID(subnetID),
 			internal_platformvm.WithBlockchainID(blkChainID),
-			internal_platformvm.WithBlockchainStatus(platformvm.Validating),
+			internal_platformvm.WithBlockchainStatus(pstatus.Validating),
 			internal_platformvm.WithCheckBlockchainBootstrapped(pc.info),
 		)
 		took += bTook
@@ -605,23 +611,23 @@ func WithPoll(b bool) OpOption {
 }
 
 // ref. "platformvm.VM.stake".
-func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
+func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption) (
 	ins []*avax.TransferableInput,
 	returnedOuts []*avax.TransferableOutput,
 	stakedOuts []*avax.TransferableOutput,
-	signers [][]*crypto.PrivateKeySECP256K1R,
+	signers [][]ids.ShortID,
 	err error,
 ) {
 	ret := &Op{}
 	ret.applyOpts(opts)
 	if ret.rewardAddr == ids.ShortEmpty {
-		ret.rewardAddr = k.Key().PublicKey().Address()
+		ret.rewardAddr = k.Addresses()[0]
 	}
 	if ret.changeAddr == ids.ShortEmpty {
-		ret.changeAddr = k.Key().PublicKey().Address()
+		ret.changeAddr = k.Addresses()[0]
 	}
 
-	ubs, _, err := pc.cli.GetAtomicUTXOs([]string{k.P()}, "", 100, "", "")
+	ubs, _, err := pc.cli.GetAtomicUTXOs(ctx, k.P(), "", 100, "", "")
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -631,11 +637,10 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 	ins = make([]*avax.TransferableInput, 0)
 	returnedOuts = make([]*avax.TransferableOutput, 0)
 	stakedOuts = make([]*avax.TransferableOutput, 0)
-	signers = make([][]*crypto.PrivateKeySECP256K1R, 0)
 
 	utxos := make([]*avax.UTXO, len(ubs))
 	for i, ub := range ubs {
-		utxos[i], err = internal_avax.ParseUTXO(ub, pCodecManager)
+		utxos[i], err = internal_avax.ParseUTXO(ub, codec.PCodecManager)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -818,26 +823,26 @@ func (pc *p) stake(k key.Key, fee uint64, opts ...OpOption) (
 		return nil, nil, nil, nil, ErrInsufficientBalanceForGasFee
 	}
 
-	avax.SortTransferableInputsWithSigners(ins, signers)      // sort inputs and keys
-	avax.SortTransferableOutputs(returnedOuts, pCodecManager) // sort outputs
-	avax.SortTransferableOutputs(stakedOuts, pCodecManager)   // sort outputs
+	key.SortTransferableInputsWithSigners(ins, signers)             // sort inputs
+	avax.SortTransferableOutputs(returnedOuts, codec.PCodecManager) // sort outputs
+	avax.SortTransferableOutputs(stakedOuts, codec.PCodecManager)   // sort outputs
 
 	return ins, returnedOuts, stakedOuts, signers, nil
 }
 
 // ref. "platformvm.VM.authorize".
-func (pc *p) authorize(k key.Key, subnetID ids.ID) (
+func (pc *p) authorize(ctx context.Context, k key.Key, subnetID ids.ID) (
 	auth verify.Verifiable, // input that names owners
-	signers []*crypto.PrivateKeySECP256K1R, // keys that prove ownership
+	signers []ids.ShortID,
 	err error,
 ) {
-	tb, err := pc.cli.GetTx(subnetID)
+	tb, err := pc.cli.GetTx(ctx, subnetID)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	tx := new(platformvm.Tx)
-	if _, err = pCodecManager.Unmarshal(tb, tx); err != nil {
+	if _, err = codec.PCodecManager.Unmarshal(tb, tx); err != nil {
 		return nil, nil, err
 	}
 
@@ -850,10 +855,8 @@ func (pc *p) authorize(k key.Key, subnetID ids.ID) (
 	if !ok {
 		return nil, nil, ErrUnknownOwners
 	}
-
-	kc := secp256k1fx.NewKeychain(k.Key())
 	now := uint64(time.Now().Unix())
-	indices, signers, ok := kc.Match(owner, now)
+	indices, signers, ok := k.Match(owner, now)
 	if !ok {
 		return nil, nil, ErrCantSign
 	}

@@ -6,6 +6,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"time"
@@ -20,17 +21,15 @@ import (
 )
 
 var (
-	ErrEmptyID               = errors.New("empty ID")
-	ErrEmptyURI              = errors.New("empty URI")
-	ErrInvalidInterval       = errors.New("invalid interval")
-	ErrInvalidRequestTimeout = errors.New("invalid request timeout")
+	ErrEmptyID         = errors.New("empty ID")
+	ErrEmptyURI        = errors.New("empty URI")
+	ErrInvalidInterval = errors.New("invalid interval")
 )
 
 type Config struct {
-	URI            string
-	u              *url.URL
-	PollInterval   time.Duration
-	RequestTimeout time.Duration
+	URI          string
+	u            *url.URL
+	PollInterval time.Duration
 }
 
 var _ Client = &client{}
@@ -65,9 +64,6 @@ func New(cfg Config) (Client, error) {
 	if cfg.PollInterval == time.Duration(0) {
 		return nil, ErrInvalidInterval
 	}
-	if cfg.RequestTimeout == time.Duration(0) {
-		return nil, ErrInvalidRequestTimeout
-	}
 
 	u, err := url.Parse(cfg.URI)
 	if err != nil {
@@ -83,7 +79,7 @@ func New(cfg Config) (Client, error) {
 	}
 
 	zap.L().Info("fetching X-Chain id")
-	xChainID, err := cli.i.Client().GetBlockchainID("X")
+	xChainID, err := cli.i.Client().GetBlockchainID(context.TODO(), "X")
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +96,8 @@ func New(cfg Config) (Client, error) {
 	zap.L().Info("fetching AVAX asset id",
 		zap.String("uri", uriX),
 	)
-	xc := avm.NewClient(uriX, xChainName, cfg.RequestTimeout)
-	avaxDesc, err := xc.GetAssetDescription("AVAX")
+	xc := avm.NewClient(uriX, xChainName)
+	avaxDesc, err := xc.GetAssetDescription(context.TODO(), "AVAX")
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +105,7 @@ func New(cfg Config) (Client, error) {
 	zap.L().Info("fetched AVAX asset id", zap.String("id", cli.assetID.String()))
 
 	zap.L().Info("fetching network information")
-	cli.networkName, err = cli.i.Client().GetNetworkName()
+	cli.networkName, err = cli.i.Client().GetNetworkName(context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +122,7 @@ func New(cfg Config) (Client, error) {
 	// e.g., https://api.avax-test.network
 	// ref. https://docs.avax.network/build/avalanchego-apis/p-chain
 	uriP := u.Scheme + "://" + u.Host
-	pc := platformvm.NewClient(uriP, cfg.RequestTimeout)
+	pc := platformvm.NewClient(uriP)
 	cli.p = &p{
 		cfg: cfg,
 

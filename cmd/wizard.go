@@ -33,6 +33,7 @@ func WizardCommand() *cobra.Command {
 	// "create subnet"
 	cmd.PersistentFlags().StringVar(&publicURI, "public-uri", "https://api.avax-test.network", "URI for avalanche network endpoints")
 	cmd.PersistentFlags().StringVar(&privKeyPath, "private-key-path", ".subnet-cli.pk", "private key file path")
+	cmd.PersistentFlags().BoolVarP(&useLedger, "ledger", "l", false, "use ledger to sign transactions")
 
 	// "add validator"
 	cmd.PersistentFlags().StringSliceVar(&nodeIDs, "node-ids", nil, "a list of node IDs (must be formatted in ids.ID)")
@@ -69,8 +70,8 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	}
 	info.validateWeight = defaultValidateWeight
 	info.validateRewardFeePercent = defaultValFeePercent
-	info.rewardAddr = info.key.Address()
-	info.changeAddr = info.key.Address()
+	info.rewardAddr = info.key.Addresses()[0]
+	info.changeAddr = info.key.Addresses()[0]
 	info.vmID, err = ids.FromString(vmIDs)
 	if err != nil {
 		return err

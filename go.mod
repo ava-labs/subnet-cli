@@ -3,6 +3,7 @@ module github.com/ava-labs/subnet-cli
 go 1.17
 
 require (
+	github.com/ava-labs/avalanche-ledger-go v0.0.5
 	github.com/ava-labs/avalanchego v1.7.6
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gyuho/avax-tester v0.0.4
@@ -15,6 +16,7 @@ require (
 )
 
 require (
+	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
@@ -39,6 +41,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
@@ -50,6 +53,8 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
+	github.com/zondax/hid v0.9.0 // indirect
+	github.com/zondax/ledger-go v0.12.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect

@@ -111,13 +111,15 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		// valInfo is not populated because [ParseNodeIDs] called on info.subnetID
 		//
 		// TODO: cleanup
-		_, end, err := cli.P().GetValidator(context.Background(), ids.Empty, nodeID)
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		_, end, err := cli.P().GetValidator(ctx, ids.Empty, nodeID)
+		cancel()
 		if err != nil {
 			return err
 		}
 		info.validateStart = time.Now().Add(30 * time.Second)
 		info.validateEnd = end
-		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
 		took, err := cli.P().AddSubnetValidator(
 			ctx,
 			info.key,
@@ -137,7 +139,9 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0
-	info.balance, err = cli.P().Balance(context.Background(), info.key)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	info.balance, err = cli.P().Balance(ctx, info.key)
+	cancel()
 	if err != nil {
 		return err
 	}

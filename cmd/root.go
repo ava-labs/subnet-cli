@@ -22,7 +22,7 @@ var (
 	logLevel     string
 
 	privKeyPath string
-	useLedger   bool // TODO: specify starting index
+	useLedger   bool
 
 	privateURI string
 	publicURI  string

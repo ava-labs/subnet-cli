@@ -194,7 +194,7 @@ To add a subnet validator to the local network:
 subnet-cli add subnet-validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:57786 \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
 ```
 

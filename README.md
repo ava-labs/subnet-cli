@@ -123,6 +123,13 @@ P-Chain.
 To create a 4 node subnet:
 
 ```bash
+# to use pre-funded ewoq key
+cat <<EOF > .subnet-cli.pk
+56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+EOF
+```
+
+```bash
 subnet-cli wizard \
 --node-ids=NodeID-741aqvs6R4iuHDyd1qT1NrFTmsgu78dc4,NodeID-K7Y79oAmBntAcdkyY1CLxCim8QuqcZbBp,NodeID-C3EY6u4v7DDi6YEbYf1wmXdvkEFXYuXNW,NodeID-AiLGeqQfh9gZY3Y8wLMD15tuJtsJHq5Qi \
 --vm-genesis-path=fake-genesis.json \
@@ -141,6 +148,17 @@ subnet-cli create subnet
 ```
 
 To create a subnet in the local network:
+
+```bash
+cat <<EOF > .subnet-cli.pk
+56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+EOF
+
+# or
+cat <<EOF > .insecure.ewoq.key
+56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+EOF
+```
 
 ```bash
 subnet-cli create subnet \

@@ -5,6 +5,7 @@ A command-line interface to manage [Avalanche Subnets](https://docs.avax.network
 ## Install
 
 ### Source
+
 ```bash
 git clone https://github.com/ava-labs/subnet-cli.git;
 cd subnet-cli;
@@ -15,6 +16,7 @@ Once you have installed `subnet-cli`, check the help page to confirm it is
 working as expected (_make sure your $GOBIN is in your $PATH_):
 
 ### Pre-Built Binaries
+
 ```bash
 VERSION=0.0.1 # Populate latest here
 
@@ -43,6 +45,7 @@ tar xzvf ${DOWNLOAD_PATH} -C /tmp
 ```
 
 ## Usage
+
 ```bash
 subnet-cli CLI
 
@@ -68,10 +71,12 @@ Use "subnet-cli [command] --help" for more information about a command.
 ```
 
 #### Ledger Support
+
 To use your [Ledger](https://www.ledger.com) with `subnet-cli`, just add the
 `-l`/`--ledger` flag to any command below.
 
 For example, to create 4 node network on Fuji with Ledger, you would run:
+
 ```bash
 subnet-cli wizard \
 --ledger \
@@ -113,7 +118,9 @@ After following these 3 steps, your test key should now have a balance on the
 P-Chain.
 
 ### `subnet-cli wizard`
+
 `wizard` is a magical command that:
+
 * Adds all NodeIDs as validators on the primary network (skipping any that
   already exist)
 * Creates a subnet
@@ -132,7 +139,6 @@ subnet-cli wizard \
 
 ![wizard-1](./img/wizard-1.png)
 ![wizard-2](./img/wizard-2.png)
-
 
 ### `subnet-cli create subnet`
 
@@ -166,7 +172,7 @@ To add a validator to the local network:
 subnet-cli add validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:57786 \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --stake-amount=2000000000000 \
 --validate-reward-fee-percent=3
 ```
@@ -188,7 +194,7 @@ To add a subnet validator to the local network:
 subnet-cli add subnet-validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:57786 \
---node-id="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1"
 ```
 

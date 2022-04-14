@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -29,10 +31,10 @@ func newAddSubnetValidatorCommand() *cobra.Command {
 Adds a subnet to the validator.
 
 $ subnet-cli add subnet-validator \
---private-key-path=.insecure.ewoq.key \
---public-uri=http://localhost:52250 \
---subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \
---node-ids="NodeID-4B4rc5vdD1758JSBYL1xyvE5NHGzz6xzH" \
+--private-key-path=/tmp/test.key \
+--public-uri=http://aops-custom-202204-px4TcM-nlb-f82ea9a371a1b3d4.elb.us-west-2.amazonaws.com:9650 \
+--subnet-id="ukpctkqaeqAR8RMgLC9fLALoRCY4ovtgaCLoxdUU89qw8zpsf" \
+--node-ids="NodeID-PqKwnUuz2b1aAJRA8LzS3RgF1T6Y1UovS,NodeID-BAAufbVWn6gyNERkYBGCaqYNMT3Tv4xjE,NodeID-NSHcp5W19kbJTjxMWgYbfNHNY1oJCL9Xi,NodeID-KQu7yZRUmRnaCrzoJnvQqGpzeYTJ4GC1L" \
 --validate-weight=1000
 
 `,
@@ -49,10 +51,11 @@ $ subnet-cli add subnet-validator \
 var errZeroValidateWeight = errors.New("zero validate weight")
 
 func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient(publicURI, true)
+	baseWallet, cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}
+	fmt.Println("subnetIDs:", subnetIDs)
 	info.subnetID, err = ids.FromString(subnetIDs)
 	if err != nil {
 		return err
@@ -119,17 +122,41 @@ func createSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		}
 		info.validateStart = time.Now().Add(30 * time.Second)
 		info.validateEnd = end
-		ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
-		took, err := cli.P().AddSubnetValidator(
-			ctx,
-			info.key,
-			info.subnetID,
-			nodeID,
-			info.validateStart,
-			info.validateEnd,
-			validateWeight,
-		)
-		cancel()
+
+		var took time.Duration
+		if baseWallet != nil {
+			// TODO: "wallet/chain/p.GetTx" on the subnet tx ID does not work...
+			// e.g, failed to fetch subnet "ukpctkqaeqAR8RMgLC9fLALoRCY4ovtgaCLoxdUU89qw8zpsf": not found
+			// this is because "wallet/chain/p.backend.AcceptTx" was not called to update "b.txs"
+			// which is used for "GetTx"...
+			// should we fallback to DB call if tx is not found in cache?
+			start := time.Now()
+			_, err = baseWallet.P().IssueAddSubnetValidatorTx(
+				&platformvm.SubnetValidator{
+					Validator: platformvm.Validator{
+						NodeID: nodeID,
+						Start:  uint64(info.validateStart.Unix()),
+						End:    uint64(info.validateEnd.Unix()),
+						Wght:   info.stakeAmount,
+					},
+					Subnet: info.subnetID,
+				},
+				common.WithPollFrequency(5*time.Second),
+			)
+			took = time.Since(start)
+		} else {
+			ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
+			took, err = cli.P().AddSubnetValidator(
+				ctx,
+				info.key,
+				info.subnetID,
+				nodeID,
+				info.validateStart,
+				info.validateEnd,
+				validateWeight,
+			)
+			cancel()
+		}
 		if err != nil {
 			return err
 		}

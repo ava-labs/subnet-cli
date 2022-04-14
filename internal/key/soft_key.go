@@ -352,3 +352,5 @@ func (m *SoftKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32
 	}
 	return indices, pks, ok
 }
+
+func (m *SoftKey) Keychain() *secp256k1fx.Keychain { return m.keyChain }

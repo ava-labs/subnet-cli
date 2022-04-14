@@ -14,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/wallet/subnet/primary"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -66,21 +67,21 @@ type Info struct {
 	changeAddr ids.ShortID
 }
 
-func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
+func InitClient(uri string, loadKey bool) (primary.Wallet, client.Client, *Info, error) {
 	cli, err := client.New(client.Config{
 		URI:          uri,
 		PollInterval: pollInterval,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	txFee, err := cli.Info().Client().GetTxFee(context.TODO())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	networkName, err := cli.Info().Client().GetNetworkName(context.TODO())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	info := &Info{
 		uri:         uri,
@@ -89,26 +90,48 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		valInfos:    map[ids.ShortID]*ValInfo{},
 	}
 	if !loadKey {
-		return cli, info, nil
+		return nil, cli, info, nil
 	}
 
+	var baseWallet primary.Wallet
 	if !useLedger {
 		info.key, err = key.LoadSoft(cli.NetworkID(), privKeyPath)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
+		}
+
+		// enough time to populate UTXO cache
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		baseWallet, err = primary.NewWalletFromURI(ctx, uri, info.key.Keychain())
+		cancel()
+		if err != nil {
+			return nil, nil, nil, err
 		}
 	} else {
 		info.key, err = key.NewHard(cli.NetworkID())
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
-	info.balance, err = cli.P().Balance(context.TODO(), info.key)
-	if err != nil {
-		return nil, nil, err
+	if baseWallet != nil {
+		balances, err := baseWallet.P().Builder().GetBalance()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		var ok bool
+		info.balance, ok = balances[baseWallet.P().AVAXAssetID()]
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("p-chain balance for %v not found", baseWallet.P().AVAXAssetID())
+		}
+	} else {
+		info.balance, err = cli.P().Balance(context.TODO(), info.key)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
-	return cli, info, nil
+
+	return baseWallet, cli, info, nil
 }
 
 func CreateLogger() error {

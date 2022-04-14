@@ -13,6 +13,8 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
@@ -60,7 +62,7 @@ $ subnet-cli add validator \
 var errInvalidValidateRewardFeePercent = errors.New("invalid validate reward fee percent")
 
 func createValidatorFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient(publicURI, true)
+	baseWallet, cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}
@@ -133,24 +135,44 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	for i, nodeID := range info.nodeIDs {
-		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		info.validateStart = time.Now().Add(30 * time.Second)
-		took, err := cli.P().AddValidator(
-			ctx,
-			info.key,
-			nodeID,
-			info.validateStart,
-			info.validateEnd,
-			client.WithStakeAmount(info.stakeAmount),
-			client.WithRewardShares(info.validateRewardFeePercent*10000),
-			client.WithRewardAddress(info.rewardAddr),
-			client.WithChangeAddress(info.changeAddr),
-		)
-		cancel()
+		var took time.Duration
+		if baseWallet != nil {
+			statr := time.Now()
+			_, err = baseWallet.P().IssueAddValidatorTx(
+				&platformvm.Validator{
+					NodeID: nodeID,
+					Start:  uint64(info.validateStart.Unix()),
+					End:    uint64(info.validateEnd.Unix()),
+					Wght:   info.stakeAmount,
+				},
+				&secp256k1fx.OutputOwners{
+					Threshold: 1,
+					Addrs:     []ids.ShortID{info.rewardAddr},
+				},
+				info.validateRewardFeePercent*10000,
+			)
+			took = time.Since(statr)
+		} else {
+			ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+			took, err = cli.P().AddValidator(
+				ctx,
+				info.key,
+				nodeID,
+				info.validateStart,
+				info.validateEnd,
+				client.WithStakeAmount(info.stakeAmount),
+				client.WithRewardShares(info.validateRewardFeePercent*10000),
+				client.WithRewardAddress(info.rewardAddr),
+				client.WithChangeAddress(info.changeAddr),
+			)
+			cancel()
+		}
 		if err != nil {
 			return err
 		}
 		color.Outf("{{magenta}}added %s to primary network validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, took)
+
 		if i < len(info.nodeIDs)-1 {
 			info.validateEnd = info.validateEnd.Add(defaultStagger)
 		}

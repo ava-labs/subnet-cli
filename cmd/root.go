@@ -57,6 +57,7 @@ func init() {
 		AddCommand(),
 		StatusCommand(),
 		WizardCommand(),
+		VersionCommand(),
 	)
 
 	rootCmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")

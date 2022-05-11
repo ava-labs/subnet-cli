@@ -260,10 +260,9 @@ func (m *SoftKey) Encode() string {
 	return m.privKeyEncoded
 }
 
-// Saves the private key to disk with hex encoding.
+// Saves the already CB58-encoded private key to disk.
 func (m *SoftKey) Save(p string) error {
-	k := hex.EncodeToString(m.privKeyRaw)
-	return ioutil.WriteFile(p, []byte(k), fsModeWrite)
+	return ioutil.WriteFile(p, []byte(m.privKeyEncoded), fsModeWrite)
 }
 
 func (m *SoftKey) P() []string { return []string{m.pAddr} }

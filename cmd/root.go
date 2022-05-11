@@ -14,6 +14,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:        "subnet-cli",
 	Short:      "subnet-cli CLI",
+	Version:    "0.0.3",
 	SuggestFor: []string{"subnet-cli", "subnetcli", "subnetctl"},
 }
 
@@ -57,7 +58,6 @@ func init() {
 		AddCommand(),
 		StatusCommand(),
 		WizardCommand(),
-		VersionCommand(),
 	)
 
 	rootCmd.PersistentFlags().BoolVar(&enablePrompt, "enable-prompt", true, "'true' to enable prompt mode")

@@ -1,6 +1,6 @@
 # subnet-cli
 
-A command-line interface to manage [Avalanche Subnets](https://docs.avax.network/build/tutorials/platform/subnets).
+A command-line interface to manage [Avalanche Subnets](https://docs.avax.network/subnets/).
 
 ## Install
 

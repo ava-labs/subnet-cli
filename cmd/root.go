@@ -14,7 +14,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:        "subnet-cli",
 	Short:      "subnet-cli CLI",
-	Version:    "0.0.3",
+	Version:    Version,
 	SuggestFor: []string{"subnet-cli", "subnetcli", "subnetctl"},
 }
 

@@ -6,13 +6,11 @@ package key
 import (
 	"bytes"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/ava-labs/avalanchego/utils/crypto"
 	"github.com/ava-labs/avalanchego/utils/formatting"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -117,23 +115,4 @@ func TestNewKey(t *testing.T) {
 			t.Fatalf("#%d(%s): unexpected error %v, expected %v", i, tv.name, err, tv.expErr)
 		}
 	}
-}
-
-func TestSaveNewKey(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	k, err := NewSoft(0)
-	assert.NoError(err)
-	tmpDir := t.TempDir()
-	tmpFile, err := os.CreateTemp(tmpDir, "save-new-key-test-file")
-	assert.NoError(err)
-	err = k.Save(tmpFile.Name())
-	assert.NoError(err)
-	controlBytes, err := os.ReadFile(tmpFile.Name())
-	assert.NoError(err)
-	control := string(controlBytes)
-	assert.Equal(control, k.privKeyEncoded)
-	startsWith := "PrivateKey-"
-	assert.Equal(control[:len(startsWith)], startsWith)
 }

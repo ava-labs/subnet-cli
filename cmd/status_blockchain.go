@@ -36,7 +36,7 @@ $ subnet-cli status blockchain \
 }
 
 func createStatusFunc(cmd *cobra.Command, args []string) error {
-	cli, _, err := InitClient(privateURI, false)
+	_, cli, _, err := InitClient(privateURI, false)
 	if err != nil {
 		return err
 	}

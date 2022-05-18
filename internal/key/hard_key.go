@@ -279,3 +279,5 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 	pTx.Initialize(unsignedBytes, signedBytes)
 	return nil
 }
+
+func (h *HardKey) Keychain() *secp256k1fx.Keychain { return nil }

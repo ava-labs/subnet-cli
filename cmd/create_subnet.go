@@ -7,7 +7,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/wallet/subnet/primary/common"
 	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/manifoldco/promptui"
@@ -34,7 +38,7 @@ $ subnet-cli create subnet \
 }
 
 func createSubnetFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient(publicURI, true)
+	baseWallet, cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}
@@ -78,9 +82,23 @@ func createSubnetFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
-	subnetID, took, err := cli.P().CreateSubnet(ctx, info.key)
-	cancel()
+	var subnetID ids.ID
+	var took time.Duration
+	if baseWallet != nil {
+		start := time.Now()
+		subnetID, err = baseWallet.P().IssueCreateSubnetTx(
+			&secp256k1fx.OutputOwners{
+				Threshold: 1,
+				Addrs:     info.key.Addresses(),
+			},
+			common.WithPollFrequency(5*time.Second),
+		)
+		took = time.Since(start)
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
+		subnetID, took, err = cli.P().CreateSubnet(ctx, info.key)
+		cancel()
+	}
 	if err != nil {
 		return err
 	}

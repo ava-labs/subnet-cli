@@ -42,6 +42,10 @@ type Key interface {
 	)
 	// Sign generates [numSigs] signatures and attaches them to [pTx].
 	Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error
+
+	// Returns the underlying key chain.
+	// Only implemented for the soft key.
+	Keychain() *secp256k1fx.Keychain
 }
 
 type Op struct {

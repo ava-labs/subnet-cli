@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -43,7 +44,7 @@ $ subnet-cli create blockchain \
 }
 
 func createBlockchainFunc(cmd *cobra.Command, args []string) error {
-	cli, info, err := InitClient(publicURI, true)
+	baseWallet, cli, info, err := InitClient(publicURI, true)
 	if err != nil {
 		return err
 	}
@@ -94,16 +95,31 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	println()
 	println()
 	println()
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	blockchainID, took, err := cli.P().CreateBlockchain(
-		ctx,
-		info.key,
-		info.subnetID,
-		info.chainName,
-		info.vmID,
-		vmGenesisBytes,
-	)
-	cancel()
+	var blockchainID ids.ID
+	var took time.Duration
+	if baseWallet != nil {
+		start := time.Now()
+		blockchainID, err = baseWallet.P().IssueCreateChainTx(
+			info.subnetID,
+			vmGenesisBytes,
+			info.vmID,
+			nil, // fxIDs
+			info.chainName,
+		)
+		took = time.Since(start)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		blockchainID, took, err = cli.P().CreateBlockchain(
+			ctx,
+			info.key,
+			info.subnetID,
+			info.chainName,
+			info.vmID,
+			vmGenesisBytes,
+		)
+		cancel()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -113,7 +129,7 @@ func createBlockchainFunc(cmd *cobra.Command, args []string) error {
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0
-	ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	info.balance, err = cli.P().Balance(ctx, info.key)
 	cancel()
 	if err != nil {

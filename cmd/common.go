@@ -25,6 +25,10 @@ import (
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
 )
 
+const (
+	Version = "0.0.3"
+)
+
 type ValInfo struct {
 	start time.Time
 	end   time.Time

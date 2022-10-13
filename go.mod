@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/ava-labs/avalanche-ledger-go v0.0.5
-	github.com/ava-labs/avalanchego v1.7.6
+	github.com/lamina1/lamina1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gyuho/avax-tester v0.0.4
 	github.com/manifoldco/promptui v0.9.0

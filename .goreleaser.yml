@@ -18,5 +18,5 @@ builds:
 
 release:
   github:
-    owner: ava-labs
+    owner: lamina1
     name: subnet-cli

@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+subnet-cli
 
 # Test binary, built with `go test -c`
 *.test

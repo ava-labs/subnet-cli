@@ -3,7 +3,7 @@ module github.com/ava-labs/subnet-cli
 go 1.17
 
 require (
-	github.com/ava-labs/avalanche-ledger-go v0.0.5
+	github.com/ava-labs/avalanche-ledger-go v0.0.6-0.20221017220014-a07b34be6b64
 	github.com/ava-labs/avalanchego v1.7.6
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gyuho/avax-tester v0.0.4
@@ -54,7 +54,7 @@ require (
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/zondax/hid v0.9.0 // indirect
-	github.com/zondax/ledger-go v0.12.2 // indirect
+	github.com/zondax/ledger-go v0.12.3-0.20221005223406-dbd460b7296d // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect

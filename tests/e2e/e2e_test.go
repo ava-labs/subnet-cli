@@ -147,8 +147,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		})
 		subnetID = subnet1
 
-		time.Sleep(3 * time.Second)
-
 		ginkgo.By("returns a tx-fee deducted balance", func() {
 			curBal, err := cli.P().Balance(context.Background(), k)
 			gomega.Ω(err).Should(gomega.BeNil())

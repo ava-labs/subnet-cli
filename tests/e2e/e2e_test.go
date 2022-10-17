@@ -7,6 +7,7 @@ package e2e_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"testing"
 	"time"
 
@@ -131,6 +132,11 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		gomega.Ω(err).Should(gomega.BeNil())
 		subnetTxFee := uint64(feeInfo.CreateSubnetTxFee)
 		expectedBalance := balance - subnetTxFee
+
+		fmt.Println("balance:", balance)
+		fmt.Println("subnetTxFee:", subnetTxFee)
+		fmt.Println("expectedBalance:", expectedBalance)
+		fmt.Printf("feeInfo: %+v\n", feeInfo)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		subnet1, _, err := cli.P().CreateSubnet(ctx, k, client.WithDryMode(true))

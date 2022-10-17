@@ -6,7 +6,6 @@ package e2e_test
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"testing"
 	"time"
@@ -208,7 +207,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				1000,
 			)
 			cancel()
-			gomega.Ω(err.Error()).Should(gomega.Equal(errors.New("empty ID")))
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("empty ID"))
 		})
 
 		ginkgo.By("fails when validate start/end times are invalid", func() {

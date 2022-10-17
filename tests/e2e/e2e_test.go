@@ -217,8 +217,8 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				1000,
 			)
 			cancel()
-			// e.g., "failed to issue tx: couldn't issue tx: staking period is too short"
-			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("staking period is too short"))
+			// e.g., "invalid subnet validate period (validate end 2022-10-17 22:06:31.656112829 +0000 UTC m=+70.199298413 expected <2022-09-07 02:30:00 +0000 UTC)"
+			gomega.Ω(err.Error()).Should(gomega.ContainSubstring("invalid subnet validate period"))
 		})
 
 		ginkgo.By("fails to add duplicate validator", func() {

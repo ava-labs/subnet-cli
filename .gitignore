@@ -23,3 +23,5 @@ dist/
 
 # vim
 *.swp
+
+subnet-cli

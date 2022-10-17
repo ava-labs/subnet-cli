@@ -125,12 +125,16 @@ var subnetID = ids.Empty
 
 var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 	ginkgo.It("can issue CreateSubnetTx", func() {
+		balance, err := cli.P().Balance(context.Background(), k)
+		gomega.Ω(err).Should(gomega.BeNil())
+		feeInfo, err := cli.Info().Client().GetTxFee(context.Background())
+		gomega.Ω(err).Should(gomega.BeNil())
+		subnetTxFee := uint64(feeInfo.CreateSubnetTxFee)
+		expectedBalance := balance - subnetTxFee
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		subnet1, _, err := cli.P().CreateSubnet(ctx, k, client.WithDryMode(true))
 		cancel()
-		gomega.Ω(err).Should(gomega.BeNil())
-
-		balance, err := cli.P().Balance(context.Background(), k)
 		gomega.Ω(err).Should(gomega.BeNil())
 
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
@@ -144,11 +148,6 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 		subnetID = subnet1
 
 		ginkgo.By("returns a tx-fee deducted balance", func() {
-			feeInfo, err := cli.Info().Client().GetTxFee(context.Background())
-			gomega.Ω(err).Should(gomega.BeNil())
-			subnetTxFee := uint64(feeInfo.CreateSubnetTxFee)
-			expectedBalance := balance - subnetTxFee
-
 			curBal, err := cli.P().Balance(context.Background(), k)
 			gomega.Ω(err).Should(gomega.BeNil())
 			gomega.Ω(curBal).Should(gomega.Equal(expectedBalance))

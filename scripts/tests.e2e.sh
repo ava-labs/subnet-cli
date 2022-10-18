@@ -66,7 +66,7 @@ go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
 #                                                                                                                       
 # We use "export" here instead of just setting a bash variable because we need                                          
 # to pass this flag to all child processes spawned by the shell.                                                        
-44  export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 ./tests/e2e/e2e.test --help
 

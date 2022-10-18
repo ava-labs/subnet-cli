@@ -12,7 +12,6 @@ import (
 
 	"github.com/ava-labs/avalanchego/api/info"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
@@ -52,9 +51,9 @@ type Info struct {
 	subnetIDType string
 	subnetID     ids.ID
 
-	nodeIDs    []ids.ShortID
-	allNodeIDs []ids.ShortID
-	valInfos   map[ids.ShortID]*ValInfo
+	nodeIDs    []ids.NodeID
+	allNodeIDs []ids.NodeID
+	valInfos   map[ids.NodeID]*ValInfo
 
 	blockchainID  ids.ID
 	chainName     string
@@ -90,7 +89,7 @@ func InitClient(uri string, loadKey bool) (client.Client, *Info, error) {
 		uri:         uri,
 		feeData:     txFee,
 		networkName: networkName,
-		valInfos:    map[ids.ShortID]*ValInfo{},
+		valInfos:    map[ids.NodeID]*ValInfo{},
 	}
 	if !loadKey {
 		return cli, info, nil
@@ -180,10 +179,10 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 func ParseNodeIDs(cli client.Client, i *Info) error {
 	// TODO: make this parsing logic more explicit (+ store per subnetID, not
 	// just whatever was called last)
-	i.nodeIDs = []ids.ShortID{}
-	i.allNodeIDs = make([]ids.ShortID, len(nodeIDs))
+	i.nodeIDs = []ids.NodeID{}
+	i.allNodeIDs = make([]ids.NodeID, len(nodeIDs))
 	for idx, rnodeID := range nodeIDs {
-		nodeID, err := ids.ShortFromPrefixedString(rnodeID, constants.NodeIDPrefix)
+		nodeID, err := ids.NodeIDFromString(rnodeID)
 		if err != nil {
 			return err
 		}
@@ -203,7 +202,7 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 	return nil
 }
 
-func WaitValidator(cli client.Client, nodeIDs []ids.ShortID, i *Info) {
+func WaitValidator(cli client.Client, nodeIDs []ids.NodeID, i *Info) {
 	for _, nodeID := range nodeIDs {
 		color.Outf("{{yellow}}waiting for validator %s to start validating %s...(could take a few minutes){{/}}\n", nodeID, i.subnetID)
 		for {

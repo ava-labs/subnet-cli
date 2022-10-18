@@ -8,17 +8,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 
 	ledger "github.com/ava-labs/avalanche-ledger-go"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/crypto"
-	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"github.com/manifoldco/promptui"
 	"github.com/onsi/ginkgo/v2/formatter"
@@ -32,7 +31,7 @@ const (
 var _ Key = &HardKey{}
 
 type HardKey struct {
-	l *ledger.Ledger
+	l ledger.Ledger
 
 	pAddrs       []string
 	shortAddrs   []ids.ShortID
@@ -83,7 +82,7 @@ func NewHard(networkID uint32) (*HardKey, error) {
 	k := &HardKey{}
 	color.Outf("{{yellow}}connecting to ledger...{{/}}\n")
 	if err := retriableLegerAction(func() error {
-		l, err := ledger.Connect()
+		l, err := ledger.New()
 		if err != nil {
 			return err
 		}
@@ -96,7 +95,7 @@ func NewHard(networkID uint32) (*HardKey, error) {
 	color.Outf("{{yellow}}deriving address from ledger...{{/}}\n")
 	hrp := getHRP(networkID)
 	if err := retriableLegerAction(func() error {
-		addrs, err := k.l.Addresses(hrp, numAddresses)
+		addrs, err := k.l.Addresses(numAddresses)
 		if err != nil {
 			return err
 		}
@@ -105,12 +104,12 @@ func NewHard(networkID uint32) (*HardKey, error) {
 		k.shortAddrs = make([]ids.ShortID, laddrs)
 		k.shortAddrMap = map[ids.ShortID]uint32{}
 		for i, addr := range addrs {
-			k.pAddrs[i], err = formatting.FormatAddress("P", hrp, addr.ShortAddr[:])
+			k.pAddrs[i], err = address.Format("P", hrp, addr[:])
 			if err != nil {
 				return err
 			}
-			k.shortAddrs[i] = addr.ShortAddr
-			k.shortAddrMap[addr.ShortAddr] = uint32(i)
+			k.shortAddrs[i] = addr
+			k.shortAddrMap[addr] = uint32(i)
 		}
 		return nil
 	}, "failed to get extended public key"); err != nil {
@@ -221,8 +220,8 @@ func (h *HardKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32
 // Sign transaction with the Ledger private key
 //
 // This is a slightly modified version of *platformvm.Tx.Sign().
-func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
-	unsignedBytes, err := codec.PCodecManager.Marshal(platformvm.CodecVersion, &pTx.UnsignedTx)
+func (h *HardKey) Sign(pTx *txs.Tx, signers [][]ids.ShortID) error {
+	unsignedBytes, err := txs.Codec.Marshal(txs.Version, &pTx.Unsigned)
 	if err != nil {
 		return fmt.Errorf("couldn't marshal UnsignedTx: %w", err)
 	}
@@ -272,7 +271,7 @@ func (h *HardKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 	}
 
 	// Create signed tx bytes
-	signedBytes, err := codec.PCodecManager.Marshal(platformvm.CodecVersion, pTx)
+	signedBytes, err := txs.Codec.Marshal(txs.Version, pTx)
 	if err != nil {
 		return fmt.Errorf("couldn't marshal ProposalTx: %w", err)
 	}

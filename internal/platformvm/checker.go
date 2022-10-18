@@ -50,7 +50,7 @@ func (c *checker) PollTx(ctx context.Context, txID ids.ID, s pstatus.Status) (ti
 		zap.String("expectedStatus", s.String()),
 	)
 	return c.poller.Poll(ctx, func() (done bool, err error) {
-		status, err := c.cli.GetTxStatus(ctx, txID, true)
+		status, err := c.cli.GetTxStatus(ctx, txID)
 		if err != nil {
 			return false, err
 		}

@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
+	runner_client "github.com/ava-labs/avalanche-network-runner/client"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	"github.com/ava-labs/subnet-cli/pkg/color"
 	"github.com/ava-labs/subnet-cli/pkg/logutil"
-	runner_client "github.com/gyuho/avax-tester/client"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
@@ -70,10 +70,9 @@ var (
 var _ = ginkgo.BeforeSuite(func() {
 	var err error
 	runnerClient, err = runner_client.New(runner_client.Config{
-		LogLevel:    logLevel,
 		Endpoint:    gRPCEp,
 		DialTimeout: 10 * time.Second,
-	})
+	}, logging.NoLog{})
 	gomega.Ω(err).Should(gomega.BeNil())
 
 	// TODO: pass subnet whitelisting
@@ -83,9 +82,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	cancel()
 	gomega.Ω(err).Should(gomega.BeNil())
 
-	// start is async, so wait some time for cluster health
-	color.Outf("{{green}}waiting for healthy{{/}}\n")
-	time.Sleep(time.Minute)
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
 	_, err = runnerClient.Health(ctx)
 	cancel()
@@ -155,9 +151,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 	})
 
 	ginkgo.It("can add subnet/validators", func() {
-		nodeIDs, err := cli.Info().Client().GetNodeID(context.Background())
-		gomega.Ω(err).Should(gomega.BeNil())
-		nodeID, err := ids.ShortFromPrefixedString(nodeIDs, constants.NodeIDPrefix)
+		nodeID, _, err := cli.Info().Client().GetNodeID(context.Background())
 		gomega.Ω(err).Should(gomega.BeNil())
 
 		ginkgo.By("fails when subnet ID is empty", func() {
@@ -181,7 +175,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				ctx,
 				k,
 				subnetID,
-				ids.ShortEmpty,
+				ids.EmptyNodeID,
 				time.Now(),
 				time.Now(),
 				1000,
@@ -196,7 +190,7 @@ var _ = ginkgo.Describe("[CreateSubnet/CreateBlockchain]", func() {
 				ctx,
 				k,
 				subnetID,
-				ids.GenerateTestShortID(),
+				ids.GenerateTestNodeID(),
 				time.Now().Add(30*time.Second),
 				time.Now().Add(2*24*time.Hour),
 				1000,

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	api_info "github.com/ava-labs/avalanchego/api/info"
@@ -19,10 +18,12 @@ import (
 	"github.com/ava-labs/avalanchego/vms/components/avax"
 	"github.com/ava-labs/avalanchego/vms/components/verify"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/stakeable"
 	pstatus "github.com/ava-labs/avalanchego/vms/platformvm/status"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/vms/platformvm/validator"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	internal_avax "github.com/ava-labs/subnet-cli/internal/avax"
-	"github.com/ava-labs/subnet-cli/internal/codec"
 	"github.com/ava-labs/subnet-cli/internal/key"
 	internal_platformvm "github.com/ava-labs/subnet-cli/internal/platformvm"
 	"go.uber.org/zap"
@@ -59,7 +60,7 @@ type P interface {
 	AddValidator(
 		ctx context.Context,
 		k key.Key,
-		nodeID ids.ShortID,
+		nodeID ids.NodeID,
 		start time.Time,
 		end time.Time,
 		opts ...OpOption,
@@ -68,7 +69,7 @@ type P interface {
 		ctx context.Context,
 		k key.Key,
 		subnetID ids.ID,
-		nodeID ids.ShortID,
+		nodeID ids.NodeID,
 		start time.Time,
 		end time.Time,
 		weight uint64,
@@ -86,7 +87,7 @@ type P interface {
 	GetValidator(
 		ctx context.Context,
 		rsubnetID ids.ID,
-		nodeID ids.ShortID,
+		nodeID ids.NodeID,
 	) (start time.Time, end time.Time, err error)
 }
 
@@ -106,7 +107,7 @@ func (pc *p) Client() platformvm.Client            { return pc.cli }
 func (pc *p) Checker() internal_platformvm.Checker { return pc.checker }
 
 func (pc *p) Balance(ctx context.Context, key key.Key) (uint64, error) {
-	pb, err := pc.cli.GetBalance(ctx, key.P())
+	pb, err := pc.cli.GetBalance(ctx, key.Addresses())
 	if err != nil {
 		return 0, err
 	}
@@ -138,8 +139,8 @@ func (pc *p) CreateSubnet(
 		return ids.Empty, 0, err
 	}
 
-	utx := &platformvm.UnsignedCreateSubnetTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	utx := &txs.CreateSubnetTx{
+		BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
 			NetworkID:    pc.networkID,
 			BlockchainID: pc.pChainID,
 			Ins:          ins,
@@ -154,8 +155,8 @@ func (pc *p) CreateSubnet(
 			Addrs: []ids.ShortID{k.Addresses()[0]},
 		},
 	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
+	pTx := &txs.Tx{
+		Unsigned: utx,
 	}
 	if err := k.Sign(pTx, signers); err != nil {
 		return ids.Empty, 0, err
@@ -185,7 +186,7 @@ func (pc *p) CreateSubnet(
 	return txID, took, err
 }
 
-func (pc *p) GetValidator(ctx context.Context, rsubnetID ids.ID, nodeID ids.ShortID) (start time.Time, end time.Time, err error) {
+func (pc *p) GetValidator(ctx context.Context, rsubnetID ids.ID, nodeID ids.NodeID) (start time.Time, end time.Time, err error) {
 	// If no [rsubnetID] is provided, just use the PrimaryNetworkID value.
 	subnetID := constants.PrimaryNetworkID
 	if rsubnetID != ids.Empty {
@@ -193,7 +194,7 @@ func (pc *p) GetValidator(ctx context.Context, rsubnetID ids.ID, nodeID ids.Shor
 	}
 
 	// Find validator data associated with [nodeID]
-	vs, err := pc.Client().GetCurrentValidators(ctx, subnetID, []ids.ShortID{nodeID})
+	vs, err := pc.Client().GetCurrentValidators(ctx, subnetID, []ids.NodeID{nodeID})
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
@@ -203,47 +204,14 @@ func (pc *p) GetValidator(ctx context.Context, rsubnetID ids.ID, nodeID ids.Shor
 	if len(vs) < 1 {
 		return time.Time{}, time.Time{}, ErrValidatorNotFound
 	}
-	var validator map[string]interface{}
 	for _, v := range vs {
-		va, ok := v.(map[string]interface{})
-		if !ok {
-			return time.Time{}, time.Time{}, fmt.Errorf("%w: %T %+v", ErrInvalidValidatorData, v, v)
-		}
-		nodeIDs, ok := va["nodeID"].(string)
-		if !ok {
-			return time.Time{}, time.Time{}, ErrInvalidValidatorData
-		}
-		if nodeIDs == nodeID.PrefixedString(constants.NodeIDPrefix) {
-			validator = va
-			break
+		if v.NodeID == nodeID {
+			return time.Unix(int64(v.StartTime), 0), time.Unix(int64(v.EndTime), 0), nil
 		}
 	}
-	if validator == nil {
-		// This should never happen if the length of [vs] > 1, however,
-		// we defend against it in case.
-		return time.Time{}, time.Time{}, ErrValidatorNotFound
-	}
-	// Parse start/end time once the validator data is found (of format
-	// `json.Uint64`)
-	d, ok := validator["startTime"].(string)
-	if !ok {
-		return time.Time{}, time.Time{}, ErrInvalidValidatorData
-	}
-	dv, err := strconv.ParseInt(d, 10, 64)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	start = time.Unix(dv, 0)
-	d, ok = validator["endTime"].(string)
-	if !ok {
-		return time.Time{}, time.Time{}, ErrInvalidValidatorData
-	}
-	dv, err = strconv.ParseInt(d, 10, 64)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	end = time.Unix(dv, 0)
-	return start, end, nil
+	// This should never happen if the length of [vs] > 1, however,
+	// we defend against it in case.
+	return time.Time{}, time.Time{}, ErrValidatorNotFound
 }
 
 // ref. "platformvm.VM.newAddSubnetValidatorTx".
@@ -251,7 +219,7 @@ func (pc *p) AddSubnetValidator(
 	ctx context.Context,
 	k key.Key,
 	subnetID ids.ID,
-	nodeID ids.ShortID,
+	nodeID ids.NodeID,
 	start time.Time,
 	end time.Time,
 	weight uint64,
@@ -265,7 +233,7 @@ func (pc *p) AddSubnetValidator(
 		// in case "subnetID == constants.PrimaryNetworkID"
 		return 0, ErrEmptyID
 	}
-	if nodeID == ids.ShortEmpty {
+	if nodeID == ids.EmptyNodeID {
 		return 0, ErrEmptyID
 	}
 
@@ -313,15 +281,15 @@ func (pc *p) AddSubnetValidator(
 	}
 	signers = append(signers, subnetSigners)
 
-	utx := &platformvm.UnsignedAddSubnetValidatorTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	utx := &txs.AddSubnetValidatorTx{
+		BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
 			NetworkID:    pc.networkID,
 			BlockchainID: pc.pChainID,
 			Ins:          ins,
 			Outs:         returnedOuts,
 		}},
-		Validator: platformvm.SubnetValidator{
-			Validator: platformvm.Validator{
+		Validator: validator.SubnetValidator{
+			Validator: validator.Validator{
 				NodeID: nodeID,
 				Start:  uint64(start.Unix()),
 				End:    uint64(end.Unix()),
@@ -331,8 +299,8 @@ func (pc *p) AddSubnetValidator(
 		},
 		SubnetAuth: subnetAuth,
 	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
+	pTx := &txs.Tx{
+		Unsigned: utx,
 	}
 	if err := k.Sign(pTx, signers); err != nil {
 		return 0, err
@@ -355,7 +323,7 @@ func (pc *p) AddSubnetValidator(
 func (pc *p) AddValidator(
 	ctx context.Context,
 	k key.Key,
-	nodeID ids.ShortID,
+	nodeID ids.NodeID,
 	start time.Time,
 	end time.Time,
 	opts ...OpOption,
@@ -363,7 +331,7 @@ func (pc *p) AddValidator(
 	ret := &Op{}
 	ret.applyOpts(opts)
 
-	if nodeID == ids.ShortEmpty {
+	if nodeID == ids.EmptyNodeID {
 		return 0, ErrEmptyID
 	}
 
@@ -426,29 +394,29 @@ func (pc *p) AddValidator(
 		return 0, err
 	}
 
-	utx := &platformvm.UnsignedAddValidatorTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	utx := &txs.AddValidatorTx{
+		BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
 			NetworkID:    pc.networkID,
 			BlockchainID: pc.pChainID,
 			Ins:          ins,
 			Outs:         returnedOuts,
 		}},
-		Validator: platformvm.Validator{
+		Validator: validator.Validator{
 			NodeID: nodeID,
 			Start:  uint64(start.Unix()),
 			End:    uint64(end.Unix()),
 			Wght:   ret.stakeAmt,
 		},
-		Stake: stakedOuts,
+		StakeOuts: stakedOuts,
 		RewardsOwner: &secp256k1fx.OutputOwners{
 			Locktime:  0,
 			Threshold: 1,
 			Addrs:     []ids.ShortID{ret.rewardAddr},
 		},
-		Shares: ret.rewardShares,
+		DelegationShares: ret.rewardShares,
 	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
+	pTx := &txs.Tx{
+		Unsigned: utx,
 	}
 	if err := k.Sign(pTx, signers); err != nil {
 		return 0, err
@@ -510,8 +478,8 @@ func (pc *p) CreateBlockchain(
 	}
 	signers = append(signers, subnetSigners)
 
-	utx := &platformvm.UnsignedCreateChainTx{
-		BaseTx: platformvm.BaseTx{BaseTx: avax.BaseTx{
+	utx := &txs.CreateChainTx{
+		BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
 			NetworkID:    pc.networkID,
 			BlockchainID: pc.pChainID,
 			Ins:          ins,
@@ -524,8 +492,8 @@ func (pc *p) CreateBlockchain(
 		GenesisData: vmGenesis,
 		SubnetAuth:  subnetAuth,
 	}
-	pTx := &platformvm.Tx{
-		UnsignedTx: utx,
+	pTx := &txs.Tx{
+		Unsigned: utx,
 	}
 	if err := k.Sign(pTx, signers); err != nil {
 		return ids.Empty, 0, err
@@ -627,7 +595,7 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 		ret.changeAddr = k.Addresses()[0]
 	}
 
-	ubs, _, err := pc.cli.GetAtomicUTXOs(ctx, k.P(), "", 100, "", "")
+	ubs, _, _, err := pc.cli.GetAtomicUTXOs(ctx, k.Addresses(), "", 100, ids.ShortEmpty, ids.Empty)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -640,7 +608,7 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 
 	utxos := make([]*avax.UTXO, len(ubs))
 	for i, ub := range ubs {
-		utxos[i], err = internal_avax.ParseUTXO(ub, codec.PCodecManager)
+		utxos[i], err = internal_avax.ParseUTXO(ub, txs.Codec)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -659,7 +627,7 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 			continue
 		}
 
-		out, ok := utxo.Out.(*platformvm.StakeableLockOut)
+		out, ok := utxo.Out.(*stakeable.LockOut)
 		if !ok {
 			// This output isn't locked, so it will be handled during the next
 			// iteration of the UTXO set
@@ -698,7 +666,7 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 		// Add the output to the staked outputs
 		stakedOuts = append(stakedOuts, &avax.TransferableOutput{
 			Asset: avax.Asset{ID: pc.assetID},
-			Out: &platformvm.StakeableLockOut{
+			Out: &stakeable.LockOut{
 				Locktime: out.Locktime,
 				TransferableOut: &secp256k1fx.TransferOutput{
 					Amt:          amountToStake,
@@ -744,7 +712,7 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 		}
 
 		out := utxo.Out
-		inner, ok := out.(*platformvm.StakeableLockOut)
+		inner, ok := out.(*stakeable.LockOut)
 		if ok {
 			if inner.Locktime > now {
 				// output currently locked, can't be burned
@@ -823,9 +791,9 @@ func (pc *p) stake(ctx context.Context, k key.Key, fee uint64, opts ...OpOption)
 		return nil, nil, nil, nil, ErrInsufficientBalanceForGasFee
 	}
 
-	key.SortTransferableInputsWithSigners(ins, signers)             // sort inputs
-	avax.SortTransferableOutputs(returnedOuts, codec.PCodecManager) // sort outputs
-	avax.SortTransferableOutputs(stakedOuts, codec.PCodecManager)   // sort outputs
+	key.SortTransferableInputsWithSigners(ins, signers)   // sort inputs
+	avax.SortTransferableOutputs(returnedOuts, txs.Codec) // sort outputs
+	avax.SortTransferableOutputs(stakedOuts, txs.Codec)   // sort outputs
 
 	return ins, returnedOuts, stakedOuts, signers, nil
 }
@@ -841,12 +809,12 @@ func (pc *p) authorize(ctx context.Context, k key.Key, subnetID ids.ID) (
 		return nil, nil, err
 	}
 
-	tx := new(platformvm.Tx)
-	if _, err = codec.PCodecManager.Unmarshal(tb, tx); err != nil {
+	tx := new(txs.Tx)
+	if _, err = txs.Codec.Unmarshal(tb, tx); err != nil {
 		return nil, nil, err
 	}
 
-	subnetTx, ok := tx.UnsignedTx.(*platformvm.UnsignedCreateSubnetTx)
+	subnetTx, ok := tx.Unsigned.(*txs.CreateSubnetTx)
 	if !ok {
 		return nil, nil, ErrWrongTxType
 	}

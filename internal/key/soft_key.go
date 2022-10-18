@@ -12,13 +12,12 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/ava-labs/subnet-cli/internal/codec"
-
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/cb58"
 	"github.com/ava-labs/avalanchego/utils/crypto"
-	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/vms/components/avax"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 	"go.uber.org/zap"
 )
@@ -135,7 +134,7 @@ func NewSoft(networkID uint32, opts ...SOpOption) (*SoftKey, error) {
 
 	// Parse HRP to create valid address
 	hrp := getHRP(networkID)
-	m.pAddr, err = formatting.FormatAddress("P", hrp, m.privKey.PublicKey().Address().Bytes())
+	m.pAddr, err = address.Format("P", hrp, m.privKey.PublicKey().Address().Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +220,7 @@ func checkKeyFileEnd(r io.ByteReader) error {
 
 func encodePrivateKey(pk *crypto.PrivateKeySECP256K1R) (string, error) {
 	privKeyRaw := pk.Bytes()
-	enc, err := formatting.EncodeWithChecksum(formatting.CB58, privKeyRaw)
+	enc, err := cb58.Encode(privKeyRaw)
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +229,7 @@ func encodePrivateKey(pk *crypto.PrivateKeySECP256K1R) (string, error) {
 
 func decodePrivateKey(enc string) (*crypto.PrivateKeySECP256K1R, error) {
 	rawPk := strings.Replace(enc, privKeyEncPfx, "", 1)
-	skBytes, err := formatting.Decode(formatting.CB58, rawPk)
+	skBytes, err := cb58.Decode(rawPk)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +327,7 @@ func (m *SoftKey) Addresses() []ids.ShortID {
 	return []ids.ShortID{m.privKey.PublicKey().Address()}
 }
 
-func (m *SoftKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
+func (m *SoftKey) Sign(pTx *txs.Tx, signers [][]ids.ShortID) error {
 	privsigners := make([][]*crypto.PrivateKeySECP256K1R, len(signers))
 	for i, inputSigners := range signers {
 		privsigners[i] = make([]*crypto.PrivateKeySECP256K1R, len(inputSigners))
@@ -341,7 +340,7 @@ func (m *SoftKey) Sign(pTx *platformvm.Tx, signers [][]ids.ShortID) error {
 		}
 	}
 
-	return pTx.Sign(codec.PCodecManager, privsigners)
+	return pTx.Sign(txs.Codec, privsigners)
 }
 
 func (m *SoftKey) Match(owners *secp256k1fx.OutputOwners, time uint64) ([]uint32, []ids.ShortID, bool) {

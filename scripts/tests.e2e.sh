@@ -20,48 +20,43 @@ fi
 # https://github.com/ava-labs/avalanchego/releases
 GOARCH=$(go env GOARCH)
 GOOS=$(go env GOOS)
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION}/avalanchego-linux-${GOARCH}-v${VERSION}.tar.gz
-DOWNLOAD_PATH=/tmp/avalanchego.tar.gz
+BASEDIR=/tmp/subnet-cli-runner
+mkdir -p ${BASEDIR}
+AVAGO_DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/${VERSION}/avalanchego-linux-${GOARCH}-${VERSION}.tar.gz
+AVAGO_DOWNLOAD_PATH=${BASEDIR}/avalanchego-linux-${GOARCH}-${VERSION}.tar.gz
 if [[ ${GOOS} == "darwin" ]]; then
-  DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION}/avalanchego-macos-v${VERSION}.zip
-  DOWNLOAD_PATH=/tmp/avalanchego.zip
+  AVAGO_DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/${VERSION}/avalanchego-macos-${VERSION}.zip
+  AVAGO_DOWNLOAD_PATH=${BASEDIR}/avalanchego-macos-${VERSION}.zip
 fi
 
-rm -rf /tmp/avalanchego-v${VERSION}
-rm -rf /tmp/avalanchego-build
-rm -f ${DOWNLOAD_PATH}
 
-echo "downloading avalanchego ${VERSION} at ${DOWNLOAD_URL}"
-curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
-
-echo "extracting downloaded avalanchego"
-if [[ ${GOOS} == "linux" ]]; then
-  tar xzvf ${DOWNLOAD_PATH} -C /tmp
-elif [[ ${GOOS} == "darwin" ]]; then
-  unzip ${DOWNLOAD_PATH} -d /tmp/avalanchego-build
-  mv /tmp/avalanchego-build/build /tmp/avalanchego-v${VERSION}
+AVAGO_FILEPATH=${BASEDIR}/avalanchego-${VERSION}
+if [[ ! -d ${AVAGO_FILEPATH} ]]; then
+  if [[ ! -f ${AVAGO_DOWNLOAD_PATH} ]]; then
+    echo "downloading avalanchego ${VERSION} at ${AVAGO_DOWNLOAD_URL} to ${AVAGO_DOWNLOAD_PATH}"
+    curl -L ${AVAGO_DOWNLOAD_URL} -o ${AVAGO_DOWNLOAD_PATH}
+  fi
+  echo "extracting downloaded avalanchego to ${AVAGO_FILEPATH}"
+  if [[ ${GOOS} == "linux" ]]; then
+    mkdir -p ${AVAGO_FILEPATH} && tar xzvf ${AVAGO_DOWNLOAD_PATH} --directory ${AVAGO_FILEPATH} --strip-components 1
+  elif [[ ${GOOS} == "darwin" ]]; then
+    unzip ${AVAGO_DOWNLOAD_PATH} -d ${AVAGO_FILEPATH}
+    mv ${AVAGO_FILEPATH}/build/* ${AVAGO_FILEPATH}
+    rm -rf ${AVAGO_FILEPATH}/build/
+  fi
+  find ${BASEDIR}/avalanchego-${VERSION}
 fi
-find /tmp/avalanchego-v${VERSION}
+
+AVALANCHEGO_PATH=${AVAGO_FILEPATH}/avalanchego
+AVALANCHEGO_PLUGIN_DIR=${AVAGO_FILEPATH}/plugins
 
 #################################
 # download avalanche-network-runner
 # https://github.com/ava-labs/avalanche-network-runner
-NETWORK_RUNNER_VERSION=1.0.14
-DOWNLOAD_PATH=/tmp/avalanche-network-runner.tar.gz
-DOWNLOAD_URL=https://github.com/ava-labs/avalanche-network-runner/releases/download/v${NETWORK_RUNNER_VERSION}/avalanche-network-runner_${NETWORK_RUNNER_VERSION}_linux_amd64.tar.gz
-if [[ ${GOOS} == "darwin" ]]; then
-  DOWNLOAD_URL=https://github.com/ava-labs/avalanche-network-runner/releases/download/v${NETWORK_RUNNER_VERSION}/avalanche-network-runner_${NETWORK_RUNNER_VERSION}_darwin_amd64.tar.gz
-fi
-
-rm -f /tmp/avalanche-network-runner
-rm -f ${DOWNLOAD_PATH}
-
-echo "downloading avalanche-network-runner ${NETWORK_RUNNER_VERSION} at ${DOWNLOAD_URL}"
-curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
-
-echo "extracting downloaded avalanchego"
-tar xzvf ${DOWNLOAD_PATH} -C /tmp
-/tmp/avalanche-network-runner -h
+ANR_REPO_PATH=github.com/ava-labs/avalanche-network-runner
+ANR_VERSION=v1.2.3
+# version set
+go install -v ${ANR_REPO_PATH}@${ANR_VERSION}
 
 #################################
 echo "building e2e.test"
@@ -70,14 +65,20 @@ go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 ./tests/e2e/e2e.test --help
 
-#################################
 # run "avalanche-network-runner" server
+GOPATH=$(go env GOPATH)
+if [[ -z ${GOBIN+x} ]]; then
+  # no gobin set
+  BIN=${GOPATH}/bin/avalanche-network-runner
+else
+  # gobin set
+  BIN=${GOBIN}/avalanche-network-runner
+fi
 echo "launch avalanche-network-runner in the background"
-/tmp/avalanche-network-runner \
-server \
---log-level debug \
---port=":8080" \
---grpc-gateway-port=":8081" 2> /dev/null &
+$BIN server \
+  --log-level debug \
+  --port=":8080" \
+  --grpc-gateway-port=":8081" &
 PID=${!}
 
 #################################
@@ -87,7 +88,7 @@ echo "running e2e tests against the local cluster"
 --log-level debug \
 --grpc-endpoint="0.0.0.0:8080" \
 --grpc-gateway-endpoint="0.0.0.0:8081" \
---avalanchego-path=/tmp/avalanchego-v${VERSION}/avalanchego
+--avalanchego-path=${AVALANCHEGO_PATH} || (kill ${PID} && exit)
 
 echo "ALL SUCCESS!"
 kill ${PID}

@@ -62,11 +62,13 @@ go install -v ${ANR_REPO_PATH}@${ANR_VERSION}
 echo "building e2e.test"
 # to install the ginkgo binary (required for test build and run)
 go install -v github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
+
 # Set the CGO flags to use the portable version of BLST                                                                 
 #                                                                                                                       
 # We use "export" here instead of just setting a bash variable because we need                                          
 # to pass this flag to all child processes spawned by the shell.                                                        
 export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+
 ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 ./tests/e2e/e2e.test --help
 

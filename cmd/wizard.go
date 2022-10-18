@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -76,7 +75,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	vmGenesisBytes, err := ioutil.ReadFile(vmGenesisPath)
+	vmGenesisBytes, err := os.ReadFile(vmGenesisPath)
 	if err != nil {
 		return err
 	}

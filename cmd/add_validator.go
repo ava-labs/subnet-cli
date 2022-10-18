@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
 	"github.com/ava-labs/avalanchego/utils/units"
 	"github.com/ava-labs/subnet-cli/client"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -86,7 +86,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if rewardAddrs != "" {
-		info.rewardAddr, err = ids.ShortFromPrefixedString(rewardAddrs, constants.NodeIDPrefix)
+		info.rewardAddr, err = address.ParseToID(rewardAddrs)
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 		info.rewardAddr = info.key.Addresses()[0]
 	}
 	if changeAddrs != "" {
-		info.changeAddr, err = ids.ShortFromPrefixedString(changeAddrs, constants.NodeIDPrefix)
+		info.changeAddr, err = address.ParseToID(changeAddrs)
 		if err != nil {
 			return err
 		}

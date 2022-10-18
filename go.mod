@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/ava-labs/avalanche-ledger-go v0.0.9
 	github.com/ava-labs/avalanche-network-runner v1.2.4-0.20221013165946-228f1f3a6d9e
-	github.com/ava-labs/avalanchego v1.8.6
+	github.com/ava-labs/avalanchego v1.9.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gyuho/avax-tester v0.0.4
 	github.com/manifoldco/promptui v0.9.0
@@ -22,7 +22,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ava-labs/coreth v0.10.0-rc.1 // indirect
+	github.com/ava-labs/coreth v0.11.0-rc.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
@@ -41,7 +41,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200627015759-01fd2de07837 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/decred/dcrd/lru v1.1.1 // indirect
-	github.com/ethereum/go-ethereum v1.10.23 // indirect
+	github.com/ethereum/go-ethereum v1.10.25 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect

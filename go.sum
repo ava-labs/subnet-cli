@@ -136,12 +136,16 @@ github.com/ava-labs/avalanchego v1.7.6 h1:sIo7Q2s1nGk5DEdpkUww2GpwE4u52+ma/uyckI
 github.com/ava-labs/avalanchego v1.7.6/go.mod h1:Mfj6Z4W1aUEHfwm/8tmdoBx5iosnFQQt2xcEdggH70w=
 github.com/ava-labs/avalanchego v1.8.6 h1:eYyW/m1+3o8HbhXsd6k52hcGxDTyGYfXHj7PX7fqc4A=
 github.com/ava-labs/avalanchego v1.8.6/go.mod h1:nYYiHRS6LmA+05rLVLDjaVjB3D7LZwAmBqYi0mweEgI=
+github.com/ava-labs/avalanchego v1.9.0 h1:9H6LZMVH9aSUJXviyBxn9owX8Dgs4azN7ojRsqLQpq0=
+github.com/ava-labs/avalanchego v1.9.0/go.mod h1:F0VZ+ukCllfz8VT79wZQlcRsTh1sbCCi5iWIhbLG8BQ=
 github.com/ava-labs/avalanchego-operator v0.0.0-20211115144351-99f07d2570bf/go.mod h1:RTkVkouQ0HBSBVSFAQCUviXPU7Iuxoy+Fui3ykmD9HA=
 github.com/ava-labs/coreth v0.8.4-rc.1/go.mod h1:bP2Atm7pCJdx8fwzsPT3xU/kWOdHFklpja7aRNT++Qo=
 github.com/ava-labs/coreth v0.8.4-rc.3/go.mod h1:9TgpLJVY9ot6RV8Lh66F356S4MfalvaL3sAqw4+miTU=
 github.com/ava-labs/coreth v0.8.6-rc.1/go.mod h1:D60h55zuIQu6/dc7nWpXNyk3xakq3xsWMFuumttcpqw=
 github.com/ava-labs/coreth v0.10.0-rc.1 h1:OIJmXLpKzkyBjmrbPqFEYGM+suewknNOb3iLctWluuM=
 github.com/ava-labs/coreth v0.10.0-rc.1/go.mod h1:o9MtalIgKMH3PY7Ca4GDHMziEvGPxaAtKFaLd6uJvJI=
+github.com/ava-labs/coreth v0.11.0-rc.4 h1:oYZMWZcXYa4dH2hQBIAH/DD0rL2cB3btPGdabpCH5Ug=
+github.com/ava-labs/coreth v0.11.0-rc.4/go.mod h1:IhfO9oA8KicFyYZA3nIqjV/TS6xzAqT5ml2QKfNGtGA=
 github.com/aws/aws-sdk-go-v2 v1.2.0/go.mod h1:zEQs02YRBw1DjK0PoJv3ygDYOFTre1ejlJWl8FwAuQo=
 github.com/aws/aws-sdk-go-v2/config v1.1.1/go.mod h1:0XsVy9lBI/BCXm+2Tuvt39YmdHwS5unDQmxZOYe8F5Y=
 github.com/aws/aws-sdk-go-v2/credentials v1.1.1/go.mod h1:mM2iIjwl7LULWtS6JCACyInboHirisUUdkBPoTHMOUo=
@@ -299,6 +303,8 @@ github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E
 github.com/ethereum/go-ethereum v1.10.15/go.mod h1:W3yfrFyL9C1pHcwY5hmRHVDaorTiQxhYBkKyu5mEDHw=
 github.com/ethereum/go-ethereum v1.10.23 h1:Xk8XAT4/UuqcjMLIMF+7imjkg32kfVFKoeyQDaO2yWM=
 github.com/ethereum/go-ethereum v1.10.23/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
+github.com/ethereum/go-ethereum v1.10.25 h1:5dFrKJDnYf8L6/5o42abCE6a9yJm9cs4EJVRyYMr55s=
+github.com/ethereum/go-ethereum v1.10.25/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=

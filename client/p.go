@@ -422,8 +422,9 @@ func (pc *p) AddValidator(
 		return 0, err
 	}
 	if err := utx.SyntacticVerify(&snow.Context{
-		NetworkID: pc.networkID,
-		ChainID:   pc.pChainID,
+		NetworkID:   pc.networkID,
+		ChainID:     pc.pChainID,
+		AVAXAssetID: pc.assetID,
 	}); err != nil {
 		return 0, err
 	}

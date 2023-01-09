@@ -67,7 +67,7 @@ func createValidatorFunc(cmd *cobra.Command, args []string) error {
 	info.stakeAmount = stakeAmount
 
 	info.subnetID = ids.Empty
-	if err := ParseNodeIDs(cli, info); err != nil {
+	if err := ParseNodeIDs(cli, info, true); err != nil {
 		return err
 	}
 	if len(info.nodeIDs) == 0 {

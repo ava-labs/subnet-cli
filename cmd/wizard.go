@@ -59,7 +59,7 @@ func wizardFunc(cmd *cobra.Command, args []string) error {
 
 	// Parse Args
 	info.subnetID = ids.Empty
-	if err := ParseNodeIDs(cli, info); err != nil {
+	if err := ParseNodeIDs(cli, info, true); err != nil {
 		return err
 	}
 	info.stakeAmount = stakeAmount

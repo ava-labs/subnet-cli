@@ -47,7 +47,7 @@ func removeSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	info.txFee = uint64(info.feeData.TxFee)
-	if err := ParseNodeIDs(cli, info); err != nil {
+	if err := ParseNodeIDs(cli, info, false); err != nil {
 		return err
 	}
 	if len(info.nodeIDs) == 0 {
@@ -103,7 +103,7 @@ func removeSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		}
 		color.Outf("{{magenta}}removed %s from subnet %s validator set{{/}} {{light-gray}}(took %v){{/}}\n\n", nodeID, info.subnetID, took)
 	}
-	WaitValidator(cli, info.nodeIDs, info)
+	WaitValidatorRemoval(cli, info.nodeIDs, info)
 	info.requiredBalance = 0
 	info.stakeAmount = 0
 	info.txFee = 0

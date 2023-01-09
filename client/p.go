@@ -352,9 +352,7 @@ func (pc *p) RemoveSubnetValidator(
 	} else if err != nil {
 		return 0, fmt.Errorf("%w: unable to get subnet validator record", err)
 	}
-	// make sure the range is within staker validation start/end on the primary network
-	// TODO: official wallet client should define the error value for such case
-	// currently just returns "staking too short"
+	// make sure the range is within staker validation start/end on the subnet
 	now := time.Now()
 	if now.Before(validateStart) {
 		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, now, validateStart)

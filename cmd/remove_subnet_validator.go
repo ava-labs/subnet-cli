@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/subnet-cli/pkg/color"
@@ -55,9 +54,6 @@ func removeSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		color.Outf("{{magenta}}no subnet validators to add{{/}}\n")
 		return nil
 	}
-	info.rewardAddr = ids.ShortEmpty
-	info.changeAddr = ids.ShortEmpty
-
 	info.txFee *= uint64(len(info.nodeIDs))
 	info.requiredBalance = info.txFee
 	if err := info.CheckBalance(); err != nil {
@@ -95,14 +91,6 @@ func removeSubnetValidatorFunc(cmd *cobra.Command, args []string) error {
 		//
 		// TODO: cleanup
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		_, end, err := cli.P().GetValidator(ctx, ids.Empty, nodeID)
-		cancel()
-		if err != nil {
-			return err
-		}
-		info.validateStart = time.Now().Add(30 * time.Second)
-		info.validateEnd = end
-		ctx, cancel = context.WithTimeout(context.Background(), requestTimeout)
 		took, err := cli.P().RemoveSubnetValidator(
 			ctx,
 			info.key,

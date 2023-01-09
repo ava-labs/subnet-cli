@@ -346,7 +346,7 @@ func (pc *p) RemoveSubnetValidator(
 		return 0, ErrEmptyID
 	}
 
-	validateStart, validateEnd, err := pc.GetValidator(ctx, subnetID, nodeID)
+	_, validateEnd, err := pc.GetValidator(ctx, subnetID, nodeID)
 	if errors.Is(err, ErrValidatorNotFound) {
 		return 0, ErrValidatorNotFound
 	} else if err != nil {
@@ -354,9 +354,7 @@ func (pc *p) RemoveSubnetValidator(
 	}
 	// make sure the range is within staker validation start/end on the subnet
 	now := time.Now()
-	if now.Before(validateStart) {
-		return 0, fmt.Errorf("%w (validate start %v expected >%v)", ErrInvalidSubnetValidatePeriod, now, validateStart)
-	}
+	// We don't check [validateStart] because we can remove pending validators.
 	if now.After(validateEnd) {
 		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, now, validateEnd)
 	}

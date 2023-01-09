@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RemoveCommand implements "subnet-cli add" command.
+// RemoveCommand implements "subnet-cli remove" command.
 func RemoveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove",

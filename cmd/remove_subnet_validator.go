@@ -18,11 +18,11 @@ import (
 func newRemoveSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "subnet-validator",
-		Short: "Removes a subnet to the validator",
+		Short: "Removes the validator from a subnet",
 		Long: `
 Removes a subnet validator.
 
-$ subnet-cli add subnet-validator \
+$ subnet-cli remove subnet-validator \
 --private-key-path=.insecure.ewoq.key \
 --public-uri=http://localhost:52250 \
 --subnet-id="24tZhrm8j8GCJRE9PomW8FaeqbgGS4UAQjJnqqn8pq5NwYSYV1" \

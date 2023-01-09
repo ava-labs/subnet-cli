@@ -75,6 +75,13 @@ type P interface {
 		weight uint64,
 		opts ...OpOption,
 	) (took time.Duration, err error)
+	RemoveSubnetValidator(
+		ctx context.Context,
+		k key.Key,
+		subnetID ids.ID,
+		nodeID ids.NodeID,
+		opts ...OpOption,
+	) (took time.Duration, err error)
 	CreateBlockchain(
 		ctx context.Context,
 		key key.Key,
@@ -297,6 +304,90 @@ func (pc *p) AddSubnetValidator(
 			},
 			Subnet: subnetID,
 		},
+		SubnetAuth: subnetAuth,
+	}
+	pTx := &txs.Tx{
+		Unsigned: utx,
+	}
+	if err := k.Sign(pTx, signers); err != nil {
+		return 0, err
+	}
+	if err := utx.SyntacticVerify(&snow.Context{
+		NetworkID: pc.networkID,
+		ChainID:   pc.pChainID,
+	}); err != nil {
+		return 0, err
+	}
+	txID, err := pc.cli.IssueTx(ctx, pTx.Bytes())
+	if err != nil {
+		return 0, fmt.Errorf("failed to issue tx: %w", err)
+	}
+
+	return pc.checker.PollTx(ctx, txID, pstatus.Committed)
+}
+
+// ref. "platformvm.VM.newRemoveSubnetValidatorTx".
+func (pc *p) RemoveSubnetValidator(
+	ctx context.Context,
+	k key.Key,
+	subnetID ids.ID,
+	nodeID ids.NodeID,
+	opts ...OpOption,
+) (took time.Duration, err error) {
+	ret := &Op{}
+	ret.applyOpts(opts)
+
+	if subnetID == ids.Empty {
+		// same as "ErrNamedSubnetCantBePrimary"
+		// in case "subnetID == constants.PrimaryNetworkID"
+		return 0, ErrEmptyID
+	}
+	if nodeID == ids.EmptyNodeID {
+		return 0, ErrEmptyID
+	}
+
+	_, validateEnd, err := pc.GetValidator(ctx, subnetID, nodeID)
+	if errors.Is(err, ErrValidatorNotFound) {
+		return 0, ErrValidatorNotFound
+	} else if err != nil {
+		return 0, fmt.Errorf("%w: unable to get subnet validator record", err)
+	}
+	// make sure the range is within staker validation start/end on the subnet
+	now := time.Now()
+	// We don't check [validateStart] because we can remove pending validators.
+	if now.After(validateEnd) {
+		return 0, fmt.Errorf("%w (validate end %v expected <%v)", ErrInvalidSubnetValidatePeriod, now, validateEnd)
+	}
+
+	fi, err := pc.info.GetTxFee(ctx)
+	if err != nil {
+		return 0, err
+	}
+	txFee := uint64(fi.TxFee)
+
+	zap.L().Info("removing subnet validator",
+		zap.String("subnetId", subnetID.String()),
+		zap.Uint64("txFee", txFee),
+	)
+	ins, returnedOuts, _, signers, err := pc.stake(ctx, k, txFee)
+	if err != nil {
+		return 0, err
+	}
+	subnetAuth, subnetSigners, err := pc.authorize(ctx, k, subnetID)
+	if err != nil {
+		return 0, err
+	}
+	signers = append(signers, subnetSigners)
+
+	utx := &txs.RemoveSubnetValidatorTx{
+		BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
+			NetworkID:    pc.networkID,
+			BlockchainID: pc.pChainID,
+			Ins:          ins,
+			Outs:         returnedOuts,
+		}},
+		NodeID:     nodeID,
+		Subnet:     subnetID,
 		SubnetAuth: subnetAuth,
 	}
 	pTx := &txs.Tx{

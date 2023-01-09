@@ -56,6 +56,7 @@ func init() {
 	rootCmd.AddCommand(
 		CreateCommand(),
 		AddCommand(),
+		RemoveCommand(),
 		StatusCommand(),
 		WizardCommand(),
 	)

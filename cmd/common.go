@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	Version = "0.0.3"
+	Version = "0.0.4"
 )
 
 type ValInfo struct {
@@ -176,7 +176,7 @@ func BaseTableSetup(i *Info) (*bytes.Buffer, *tablewriter.Table) {
 	return buf, tb
 }
 
-func ParseNodeIDs(cli client.Client, i *Info) error {
+func ParseNodeIDs(cli client.Client, i *Info, add bool) error {
 	// TODO: make this parsing logic more explicit (+ store per subnetID, not
 	// just whatever was called last)
 	i.nodeIDs = []ids.NodeID{}
@@ -191,11 +191,15 @@ func ParseNodeIDs(cli client.Client, i *Info) error {
 		start, end, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
 		i.valInfos[nodeID] = &ValInfo{start, end}
 		switch {
-		case errors.Is(err, client.ErrValidatorNotFound):
+		case add && errors.Is(err, client.ErrValidatorNotFound):
 			i.nodeIDs = append(i.nodeIDs, nodeID)
+		case !add && err == nil:
+			i.nodeIDs = append(i.nodeIDs, nodeID)
+		case !add && errors.Is(err, client.ErrValidatorNotFound):
+			color.Outf("\n{{yellow}}%s is not yet a validator on %s{{/}}\n", nodeID, i.subnetID)
 		case err != nil:
 			return err
-		default:
+		case add:
 			color.Outf("\n{{yellow}}%s is already a validator on %s{{/}}\n", nodeID, i.subnetID)
 		}
 	}
@@ -211,6 +215,19 @@ func WaitValidator(cli client.Client, nodeIDs []ids.NodeID, i *Info) {
 				if i.subnetID == ids.Empty {
 					i.valInfos[nodeID] = &ValInfo{start, end}
 				}
+				break
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}
+}
+
+func WaitValidatorRemoval(cli client.Client, nodeIDs []ids.NodeID, i *Info) {
+	for _, nodeID := range nodeIDs {
+		color.Outf("{{yellow}}waiting for validator %s to stop validating %s...(could take a few minutes){{/}}\n", nodeID, i.subnetID)
+		for {
+			_, _, err := cli.P().GetValidator(context.Background(), i.subnetID, nodeID)
+			if errors.Is(err, client.ErrValidatorNotFound) {
 				break
 			}
 			time.Sleep(10 * time.Second)
